@@ -9,10 +9,10 @@
     "userInterfaceStyle": "automatic",
 
     "web": {
-      "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
-    },
+  "bundler": "metro",
+  "output": "static",
+  "favicon": "./assets/images/favicon.png"
+},
 
     "plugins": [
       "expo-router",
