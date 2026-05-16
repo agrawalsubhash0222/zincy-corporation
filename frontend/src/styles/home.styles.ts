@@ -49,7 +49,8 @@ export const styles = StyleSheet.create({
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: -5,
+    marginLeft: -12,
+    marginTop: 14,
   },
 
   hamburger: {
