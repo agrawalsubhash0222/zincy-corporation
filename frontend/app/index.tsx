@@ -88,11 +88,12 @@ export default function HomeScreen() {
           >
             <Text style={styles.tagline}>INNOVATE • INTEGRATE • INSPIRE</Text>
 
-            <Text style={styles.title}>
-              TECHNOLOGY{'\n'}
-              THAT EMPOWERS{'\n'}
-              <Text style={styles.blueText}>YOUR FUTURE</Text>
-            </Text>
+            <Text style={styles.title}>TECHNOLOGY</Text>
+<Text style={styles.title}>THAT</Text>
+<Text style={styles.title}>
+  EMPOWERS <Text style={styles.blueText}>YOUR</Text>
+</Text>
+<Text style={styles.title}>BUSINESS</Text>
 
             <Text style={styles.subtitle}>
               Zincy Corporation delivers smart, scalable and secure technology
