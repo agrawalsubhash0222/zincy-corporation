@@ -188,7 +188,7 @@ export const styles = StyleSheet.create({
   },
 
   tiltedBanner: {
-    transform: [{ rotate: '-6deg' }],
+    //transform: [{ rotate: '-6deg' }],
     alignSelf: 'flex-start',
   },
 
