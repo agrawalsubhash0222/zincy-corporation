@@ -10,7 +10,7 @@ export default function HeroButtons() {
       <TouchableOpacity
         style={styles.primaryButton}
         activeOpacity={0.85}
-        onPress={() => router.push('/services')}
+        onPress={() => router.push('/solutions')}
       >
         <Text style={styles.primaryButtonText}>Explore Solutions</Text>
       </TouchableOpacity>

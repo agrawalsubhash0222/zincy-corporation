@@ -5,15 +5,22 @@ const isMobile = width <= 600;
 
 export const styles = StyleSheet.create({
   screen: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    paddingHorizontal: isMobile ? 22 : 80,
-  },
+  flex: 1,
+  backgroundColor: '#ffffff',
+},
 
-  header: {
-    paddingTop: isMobile ? 35 : 55,
-    paddingBottom: 25,
-  },
+header: {
+  paddingTop: 0,
+  paddingBottom: 25,
+},
+
+container: {
+  width: '100%',
+  maxWidth: 1200,
+  alignSelf: 'center',
+  paddingHorizontal: isMobile ? 22 : 24,
+  marginTop: isMobile ? -65 : -40,
+},
 
   backText: {
     fontSize: 16,
@@ -107,4 +114,19 @@ export const styles = StyleSheet.create({
     lineHeight: 28,
     fontWeight: '600',
   },
+  scrollView: {
+  flex: 1,
+  width: '100%',
+},
+
+scrollContent: {
+  paddingBottom: 60,
+},
+
+container: {
+  width: '100%',
+  maxWidth: 1200,
+  alignSelf: 'center',
+  paddingHorizontal: 24,
+},
 });

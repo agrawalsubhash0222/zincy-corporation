@@ -1,4 +1,4 @@
-export type AppPath = '/' | '/about' | '/services' | '/contact';
+export type AppPath = '/' | '/about' | '/solutions' | '/contact';
 
 export type NavItem = {
   label: string;
