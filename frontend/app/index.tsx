@@ -6,6 +6,7 @@ import {
   Dimensions,
   Image,
   ImageBackground,
+  ScrollView,
   Text,
   TouchableOpacity,
   View,
@@ -44,7 +45,11 @@ export default function HomeScreen() {
   };
 
   return (
-    <View style={styles.screen}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={{ flexGrow: 1 }}
+      showsVerticalScrollIndicator={false}
+    >
       <ImageBackground
         source={require('@/assets/images/hero-banner.png')}
         style={styles.backgroundImage}
@@ -132,18 +137,36 @@ export default function HomeScreen() {
               },
             ]}
           >
-            <Text style={styles.tagline}>INNOVATE • INTEGRATE • INSPIRE</Text>
-
-            <Text style={styles.title}>TECHNOLOGY</Text>
-            <Text style={styles.title}>THAT</Text>
-            <Text style={styles.title}>EMPOWERS</Text>
-            <Text style={styles.title}>
-              <Text style={styles.blueText}>YOUR</Text> BUSINESS
+            <Text style={styles.tagline}>
+              The Future Runs On Technology.
             </Text>
 
+            {/* HERO TEXT */}
+            <View style={styles.bannerTextWrapper}>
+              <View style={styles.tiltedBanner}>
+
+                <View style={styles.smallBlueBox}>
+                  <Text style={styles.bannerBlue}>
+                    TRANSFORMING IDEAS
+                  </Text>
+                </View>
+
+                <Text style={styles.bannerBlack}>
+                  INTO
+                </Text>
+
+                <View style={styles.largeBlueBox}>
+                  <Text style={styles.bannerBlueLarge}>
+                    DIGITAL REALITY
+                  </Text>
+                </View>
+
+              </View>
+            </View>
+
             <Text style={styles.subtitle}>
-              Zincy Corporation delivers smart, scalable and secure technology
-              solutions to drive real business impact.
+              Zincy Corporation builds and delivers smart, secure, scalable
+                and future-ready digital solutions that drive real business impact.
             </Text>
 
             <View style={styles.buttonWrapper}>
@@ -152,7 +175,9 @@ export default function HomeScreen() {
                 activeOpacity={0.85}
                 onPress={() => router.push('/services')}
               >
-                <Text style={styles.primaryButtonText}>Explore Solutions</Text>
+                <Text style={styles.primaryButtonText}>
+                  Explore Solutions
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -160,12 +185,14 @@ export default function HomeScreen() {
                 activeOpacity={0.85}
                 onPress={() => router.push('/contact')}
               >
-                <Text style={styles.outlineButtonText}>Contact Us</Text>
+                <Text style={styles.outlineButtonText}>
+                  Contact Us
+                </Text>
               </TouchableOpacity>
             </View>
           </Animated.View>
         </LinearGradient>
       </ImageBackground>
-    </View>
+    </ScrollView>
   );
 }

@@ -10,7 +10,7 @@ export const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff',
     overflow: 'hidden',
-    marginTop: -15,
+    marginTop: 0,
   },
 
   backgroundImage: {
@@ -23,26 +23,32 @@ export const styles = StyleSheet.create({
     flex: 1,
   },
 
+  /* =========================
+     NAVBAR
+  ========================= */
+
   navbar: {
-    width: '100%',
-    height: isMobile ? 72 : 92,
+  width: '100%',
 
-    paddingHorizontal: isMobile ? 20 : 80,
+  height: 64,
 
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: isMobile ? 'space-between' : 'space-between',
+  paddingHorizontal: 32,
+  paddingVertical: 0,
 
-    backgroundColor: isMobile ? '#ffffff' : '#ffffff',
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'space-between',
 
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 6,
+  backgroundColor: '#ffffff',
 
-    zIndex: 30,
-  },
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.05,
+  shadowRadius: 6,
+  elevation: 10,
+
+  zIndex: 30,
+},
 
   hamburgerButton: {
     width: 44,
@@ -50,7 +56,6 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: -12,
-    marginTop: 14,
   },
 
   hamburger: {
@@ -65,20 +70,24 @@ export const styles = StyleSheet.create({
     height: 44,
   },
 
-  logoContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
+ logoContainer: {
+  justifyContent: 'center',
+  alignItems: 'center',
 
-    marginLeft:
-      Platform.OS === 'web' && width > 768
-        ? -100
-        : 0,
-  },
+  height: 64,
 
-  logoImage: {
-    width: isMobile ? 125 : 170,
-    height: isMobile ? 58 : 78,
-  },
+  marginLeft:
+    Platform.OS === 'web' && width > 768
+      ? -10
+      : 0,
+},
+
+ logoImage: {
+  width: isMobile ? 88 : 100,
+  height: isMobile ? 50 : 55,
+
+  resizeMode: 'contain',
+},
 
   menu: {
     flexDirection: 'row',
@@ -87,10 +96,14 @@ export const styles = StyleSheet.create({
   },
 
   menuItem: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: '#020B2D',
   },
+
+  /* =========================
+     MOBILE MENU
+  ========================= */
 
   mobileMenu: {
     position: 'absolute',
@@ -128,10 +141,17 @@ export const styles = StyleSheet.create({
     color: '#00195B',
   },
 
+  /* =========================
+     HERO SECTION
+  ========================= */
+
   heroContent: {
     width: isMobile ? '92%' : isTablet ? '70%' : '55%',
-    marginTop: isMobile ? 34 : 40,
-    marginLeft: isMobile ? 24 : 60,
+
+    marginTop: isMobile ? 18 : 40,
+    marginLeft: isMobile ? 22 : 60,
+
+    paddingBottom: isMobile ? 40 : 80,
   },
 
   tagline: {
@@ -139,46 +159,116 @@ export const styles = StyleSheet.create({
     lineHeight: isMobile ? 22 : 28,
     fontWeight: '800',
     letterSpacing: isMobile ? 3 : 5,
-    color: '#2A73FF',
-    marginBottom: isMobile ? 22 : 24,
-  },
+    color: '#111',
 
-  title: {
-    fontSize: isMobile ? 34 : isTablet ? 58 : 78,
-    lineHeight: isMobile ? 41 : isTablet ? 64 : 82,
-    fontWeight: '900',
-    color: '#00195B',
-  },
-
-  blueText: {
-    color: '#2E7BFF',
+    marginBottom: isMobile ? 10 : 24,
   },
 
   subtitle: {
-    marginTop: isMobile ? 22 : 30,
+    marginTop: isMobile ? 24 : 30,
     width: isMobile ? '90%' : '88%',
+
     fontSize: isMobile ? 14 : 21,
     lineHeight: isMobile ? 24 : 36,
+
     color: '#1E376D',
     fontWeight: '500',
   },
 
+  /* =========================
+     HERO BANNER TEXT
+  ========================= */
+
+  bannerTextWrapper: {
+    marginTop: isMobile ? 26 : 35,
+    marginBottom: 28,
+    alignSelf: 'flex-start',
+  },
+
+  tiltedBanner: {
+    transform: [{ rotate: '-6deg' }],
+    alignSelf: 'flex-start',
+  },
+
+  smallBlueBox: {
+    backgroundColor: '#0B94D9',
+    alignSelf: 'flex-start',
+
+    paddingHorizontal: isMobile ? 18 : 24,
+    paddingVertical: isMobile ? 8 : 10,
+  },
+
+  bannerBlue: {
+    color: '#FFFFFF',
+
+    fontSize: isMobile ? 16 : 28,
+    fontWeight: '900',
+
+    letterSpacing: 1,
+  },
+
+  bannerBlack: {
+    color: '#111111',
+
+    fontSize: isMobile ? 58 : 110,
+    fontWeight: '900',
+
+    lineHeight: isMobile ? 65 : 120,
+
+    marginTop: isMobile ? 0 : 8,
+    marginBottom: isMobile ? -4 : 8,
+
+    marginLeft: 6,
+
+    letterSpacing: 2,
+  },
+
+  largeBlueBox: {
+    backgroundColor: '#0B94D9',
+    alignSelf: 'flex-start',
+
+    marginTop: isMobile ? 8 : 0,
+
+    paddingHorizontal: isMobile ? 18 : 24,
+    paddingVertical: isMobile ? 10 : 12,
+  },
+
+  bannerBlueLarge: {
+    color: '#FFFFFF',
+
+    fontSize: isMobile ? 34 : 64,
+    fontWeight: '900',
+
+    letterSpacing: 2,
+  },
+
+  /* =========================
+     BUTTONS
+  ========================= */
+
   buttonWrapper: {
     flexDirection: isMobile ? 'column' : 'row',
+
     alignItems: isMobile ? 'stretch' : 'center',
-    marginTop: isMobile ? 28 : 42,
-    gap: isMobile ? 14 : 24,
+
+    marginTop: isMobile ? 32 : 42,
+
+    gap: isMobile ? 16 : 24,
+
     width: isMobile ? '88%' : 'auto',
   },
 
   primaryButton: {
-    backgroundColor: '#246BFF',
+    backgroundColor: '#008DDA',
+
     paddingHorizontal: isMobile ? 22 : 34,
-    paddingVertical: isMobile ? 15 : 18,
-    borderRadius: 14,
+    paddingVertical: isMobile ? 16 : 18,
+
+    borderRadius: 16,
+
     alignItems: 'center',
 
-    shadowColor: '#246BFF',
+    shadowColor: '#008DDA',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.25,
     shadowRadius: 12,
@@ -187,23 +277,49 @@ export const styles = StyleSheet.create({
 
   primaryButtonText: {
     color: '#ffffff',
+
     fontSize: isMobile ? 15 : 20,
     fontWeight: '800',
   },
 
   outlineButton: {
     paddingHorizontal: isMobile ? 22 : 34,
-    paddingVertical: isMobile ? 15 : 18,
-    borderRadius: 14,
+    paddingVertical: isMobile ? 16 : 18,
+
+    borderRadius: 16,
+
     borderWidth: 2,
-    borderColor: '#246BFF',
+    borderColor: '#008DDA',
+
     backgroundColor: 'rgba(255,255,255,0.65)',
+
     alignItems: 'center',
   },
 
   outlineButtonText: {
-    color: '#246BFF',
+    color: '#008DDA',
+
     fontSize: isMobile ? 15 : 20,
     fontWeight: '800',
+  },
+
+  /* =========================
+     EXTRA
+  ========================= */
+
+  withUsContainer: {
+    backgroundColor: '#008DDA',
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+    paddingHorizontal: 18,
+    marginTop: 8,
+  },
+
+  ideaText: {
+    marginTop: 18,
+    fontSize: isMobile ? 18 : 24,
+    color: '#222',
+    fontStyle: 'italic',
+    fontWeight: '600',
   },
 });
