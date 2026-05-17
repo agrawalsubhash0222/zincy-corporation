@@ -55,7 +55,7 @@ export const styles = StyleSheet.create({
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: -12,
+    marginLeft: -6,
   },
 
   hamburger: {
@@ -63,6 +63,7 @@ export const styles = StyleSheet.create({
     lineHeight: 38,
     fontWeight: '800',
     color: '#00195B',
+    marginLeft: -35,
   },
 
   rightSpace: {
@@ -87,6 +88,7 @@ export const styles = StyleSheet.create({
   height: isMobile ? 50 : 55,
 
   resizeMode: 'contain',
+  alignItems: 'center',
 },
 
   menu: {
