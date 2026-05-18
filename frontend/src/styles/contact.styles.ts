@@ -15,11 +15,11 @@ export const styles = StyleSheet.create({
   },
 
   container: {
-    width: '100%',
+    width: isMobile ? '118%' : '65%',
     maxWidth: 1200,
     alignSelf: 'center',
     paddingHorizontal: isMobile ? 22 : 24,
-    marginTop: isMobile ? -65 : -40,
+    marginTop: isMobile ? -45 : -40,
   },
 
   backText: {

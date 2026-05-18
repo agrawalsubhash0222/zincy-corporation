@@ -25,7 +25,7 @@ export const cardStyles = StyleSheet.create({
     borderColor: '#D8E8FF',
     borderRadius: 26,
     padding: isMobile ? 28 : 36,
-    minHeight: isMobile ? 310 : 330,
+    minHeight: isMobile ? 210 : 150,
     flex: isMobile ? undefined : 1,
     shadowColor: '#0877FF',
     shadowOpacity: 0.06,

@@ -51,7 +51,7 @@ export const ctaStyles = StyleSheet.create({
     ctaButton: {
         backgroundColor: '#FFFFFF',
 
-        paddingHorizontal: 28,
+        paddingHorizontal: 30,
         paddingVertical: 15,
 
         borderRadius: 14,
