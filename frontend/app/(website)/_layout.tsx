@@ -1,16 +1,32 @@
 import { Stack } from 'expo-router';
-import { View } from 'react-native';
+import React from 'react';
+import { Text, View } from 'react-native';
 
-import Footer from '@/components/common/Footer';
-
-export default function RootLayout() {
+export default function WebsiteLayout() {
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
       <View style={{ flex: 1 }}>
         <Stack screenOptions={{ headerShown: false }} />
       </View>
 
-      <Footer />
+      <View
+        style={{
+          backgroundColor: '#0e010131',
+          paddingVertical: 5,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Text
+          style={{
+            color: '#9ca3af',
+            fontSize: 15,
+            textAlign: 'center',
+          }}
+        >
+          © 2026 Zincy Corporation Pvt. Ltd. All Rights Reserved.
+        </Text>
+      </View>
     </View>
   );
 }

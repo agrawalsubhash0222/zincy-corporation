@@ -1,180 +1,84 @@
-import React, { useMemo, useRef, useState } from 'react';
-import {
-    Animated,
-    ScrollView,
-    Text,
-    TouchableOpacity,
-    View,
-} from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { ScrollView, useWindowDimensions, View } from 'react-native';
 
-import Navbar from '@/components/Navbar';
-import SolutionCard from '@/components/solutions/SolutionCard';
-import { SOLUTIONS, solutionGroup, solutionItem } from '@/constants/solutions';
-import { styles } from '@/styles/solutions.styles';
+import Navbar from '@/components/layout/Navbar';
+import SolutionGrid from '@/components/solutions/SolutionGrid';
+import SolutionsCTA from '@/components/solutions/SolutionsCTA';
+import SolutionsHero from '@/components/solutions/SolutionsHero';
+import SolutionTabs from '@/components/solutions/SolutionTabs';
+
+import {
+    solutionGroup,
+    solutionItem,
+    SOLUTIONS,
+} from '@/constants/solutions';
+
+import { styles } from '@/styles/solutions/solutions.styles';
 
 export default function SolutionsScreen() {
-    const [activeGroup, setActiveGroup] = useState<solutionGroup>('digital');
-    const [selectedSolution, setSelectedSolution] = useState<solutionItem>(SOLUTIONS[0]);
+    const { width } = useWindowDimensions();
 
-    const fadeAnim = useRef(new Animated.Value(1)).current;
-    const slideAnim = useRef(new Animated.Value(0)).current;
+    const columns = width <= 700 ? 1 : width <= 1050 ? 2 : 3;
+
+    const [activeGroup, setActiveGroup] =
+        useState<solutionGroup>('software');
+
+    const [selectedSolution, setSelectedSolution] =
+        useState<solutionItem | null>(null);
 
     const filteredSolutions = useMemo(
-        () => SOLUTIONS.filter(item => item.group === activeGroup),
+        () => SOLUTIONS.filter((item) => item.group === activeGroup),
         [activeGroup]
     );
 
+    const rows = useMemo(() => {
+        const result: solutionItem[][] = [];
+
+        for (let i = 0; i < filteredSolutions.length; i += columns) {
+            result.push(filteredSolutions.slice(i, i + columns));
+        }
+
+        return result;
+    }, [filteredSolutions, columns]);
+
     const handleGroupChange = (group: solutionGroup) => {
         setActiveGroup(group);
-
-        const firstSolution = SOLUTIONS.find(item => item.group === group);
-        if (firstSolution) {
-            setSelectedSolution(firstSolution);
-        }
+        setSelectedSolution(null);
     };
 
     const handleCardPress = (item: solutionItem) => {
+        if (selectedSolution?.id === item.id) {
+            setSelectedSolution(null);
+            return;
+        }
+
         setSelectedSolution(item);
-
-        fadeAnim.setValue(0);
-        slideAnim.setValue(18);
-
-        Animated.parallel([
-            Animated.timing(fadeAnim, {
-                toValue: 1,
-                duration: 350,
-                useNativeDriver: true,
-            }),
-            Animated.timing(slideAnim, {
-                toValue: 0,
-                duration: 350,
-                useNativeDriver: true,
-            }),
-        ]).start();
     };
 
     return (
-        <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
-            <View style={{ width: '100%', alignSelf: 'stretch' }}>
-                <Navbar />
-            </View>
-            <ScrollView style={styles.screen} showsVerticalScrollIndicator={false}>
-                <View style={styles.header}>
+        <View style={styles.root}>
+            <Navbar />
 
-                    <Text style={styles.title}>Explore Our Services & Solutions</Text>
+            <ScrollView
+                style={styles.screen}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+            >
+                <SolutionsHero />
 
-                    <Text style={styles.subtitle}>
-                        We provide end-to-end digital services & solutions to help your business grow,
-                        scale and succeed in the digital world.
-                    </Text>
-                </View>
+                <SolutionTabs
+                    activeGroup={activeGroup}
+                    onChange={handleGroupChange}
+                />
 
-                <View style={styles.tabWrapper}>
-                    <TouchableOpacity
-                        activeOpacity={0.8}
-                        onPress={() => handleGroupChange('digital')}
-                        style={[
-                            styles.tabButton,
-                            activeGroup === 'digital' && styles.activeTabButton,
-                        ]}
-                    >
-                        <Text
-                            style={[
-                                styles.tabText,
-                                activeGroup === 'digital' && styles.activeTabText,
-                            ]}
-                        >
-                            📣 Digital Marketing
-                        </Text>
-                    </TouchableOpacity>
+                <SolutionGrid
+                    rows={rows}
+                    selectedSolution={selectedSolution}
+                    onCardPress={handleCardPress}
+                    onCloseDetails={() => setSelectedSolution(null)}
+                />
 
-                    <TouchableOpacity
-                        activeOpacity={0.8}
-                        onPress={() => handleGroupChange('software')}
-                        style={[
-                            styles.tabButton,
-                            activeGroup === 'software' && styles.activeTabButton,
-                        ]}
-                    >
-                        <Text
-                            style={[
-                                styles.tabText,
-                                activeGroup === 'software' && styles.activeTabText,
-                            ]}
-                        >
-                            💻 Software & Solutions
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-
-                <View style={styles.cardGrid}>
-                    {filteredSolutions.map(item => (
-                        <SolutionCard
-                            key={item.id}
-                            item={item}
-                            isActive={selectedSolution.id === item.id}
-                            onPress={() => handleCardPress(item)}
-                        />
-                    ))}
-                </View>
-
-                <Animated.View
-                    style={[
-                        styles.detailPanel,
-                        {
-                            opacity: fadeAnim,
-                            transform: [{ translateY: slideAnim }],
-                        },
-                    ]}
-                >
-                    <View style={styles.detailLeft}>
-                        <Text style={styles.detailTitle}>{selectedSolution.title}</Text>
-                        <Text style={styles.detailText}>{selectedSolution.detailText}</Text>
-
-                        {selectedSolution.points.map(point => (
-                            <View key={point} style={styles.pointRow}>
-                                <Text style={styles.checkIcon}>✓</Text>
-                                <Text style={styles.pointText}>{point}</Text>
-                            </View>
-                        ))}
-
-                        <TouchableOpacity style={styles.quoteButton} activeOpacity={0.85}>
-                            <Text style={styles.quoteButtonText}>Request a Quote  →</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    <View style={styles.detailRight}>
-                        <Text style={styles.bigIcon}>{selectedSolution.icon}</Text>
-
-                        <View style={styles.metricGrid}>
-                            <View style={styles.metricCard}>
-                                <Text style={styles.metricValue}>250+</Text>
-                                <Text style={styles.metricLabel}>Clients</Text>
-                            </View>
-
-                            <View style={styles.metricCard}>
-                                <Text style={styles.metricValue}>500+</Text>
-                                <Text style={styles.metricLabel}>Projects</Text>
-                            </View>
-
-                            <View style={styles.metricCard}>
-                                <Text style={styles.metricValue}>98%</Text>
-                                <Text style={styles.metricLabel}>Satisfaction</Text>
-                            </View>
-                        </View>
-                    </View>
-                </Animated.View>
-
-                <View style={styles.ctaBox}>
-                    <View>
-                        <Text style={styles.ctaTitle}>🚀 Ready to grow your business?</Text>
-                        <Text style={styles.ctaText}>Let&apos;s build something great together.</Text>
-                    </View>
-
-                    <TouchableOpacity style={styles.ctaButton} activeOpacity={0.85}>
-                        <Text style={styles.ctaButtonText}>Get in Touch →</Text>
-                    </TouchableOpacity>
-                </View>
+                <SolutionsCTA />
             </ScrollView>
         </View>
     );

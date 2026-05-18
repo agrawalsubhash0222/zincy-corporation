@@ -2,7 +2,7 @@ import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 
 import { NAV_ITEMS } from '@/constants/navigation';
-import { styles } from '@/styles/home.styles';
+import { styles } from '@/styles/home/home.styles';
 import { AppPath } from '@/types/navigation.types';
 
 type Props = {

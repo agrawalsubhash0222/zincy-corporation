@@ -2,7 +2,7 @@ import React from 'react';
 import { Animated, Text } from 'react-native';
 
 import { useHomeAnimation } from '@/hooks/useHomeAnimation';
-import { styles } from '@/styles/home.styles';
+import { styles } from '@/styles/home/home.styles';
 
 import HeroBanner from './HeroBanner';
 import HeroButtons from './HeroButtons';

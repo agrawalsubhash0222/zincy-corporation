@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 
-import { styles } from '@/styles/home.styles';
+import { styles } from '@/styles/home/home.styles';
 
 export default function HeroButtons() {
   return (

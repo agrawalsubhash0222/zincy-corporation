@@ -59,15 +59,25 @@ export const SOLUTIONS: solutionItem[] = [
             'Campaign Optimization',
         ],
     },
+    // {
+    //     id: 'custom-software',
+    //     group: 'software',
+    //     icon: '💻',
+    //     title: 'Customized Software Development',
+    //     shortText: 'Custom software built to solve your unique business challenges.',
+    //     detailText:
+    //         'We build secure and scalable software solutions based on your exact business process.',
+    //     points: ['Requirement Analysis', 'Custom Development', 'Admin Panel', 'API Integration'],
+    // },
     {
-        id: 'custom-software',
+        id: 'mobile-app',
         group: 'software',
-        icon: '💻',
-        title: 'Customized Software Development',
-        shortText: 'Custom software built to solve your unique business challenges.',
+        icon: '📲',
+        title: 'Mobile App Development',
+        shortText: 'High performance, feature-rich Android & iOS applications.',
         detailText:
-            'We build secure and scalable software solutions based on your exact business process.',
-        points: ['Requirement Analysis', 'Custom Development', 'Admin Panel', 'API Integration'],
+            'We create fast, modern and scalable mobile apps for Android and iOS platforms.',
+        points: ['Android App', 'iOS App', 'API Integration', 'Secure Login'],
     },
     {
         id: 'web-development',
@@ -80,35 +90,43 @@ export const SOLUTIONS: solutionItem[] = [
         points: ['Business Website', 'E-commerce Website', 'Responsive UI', 'SEO Friendly'],
     },
     {
-        id: 'mobile-app',
+        id: 'billing-invoicing',
         group: 'software',
-        icon: '📲',
-        title: 'Mobile App Development',
-        shortText: 'High performance, feature-rich Android & iOS applications.',
+        icon: '🧾',
+        title: 'Billing & Invoicing Software',
+        shortText:
+            'Smart billing, invoice generation, payment tracking and business reports.',
         detailText:
-            'We create fast, modern and scalable mobile apps for Android and iOS platforms.',
-        points: ['Android App', 'iOS App', 'API Integration', 'Secure Login'],
+            'We build billing and invoicing software to help businesses create invoices, manage customers, track payments, monitor sales and generate reports easily.',
+        points: [
+            'Invoice Generation',
+            'Customer Management',
+            'Payment Tracking',
+            'Sales Reports',
+            'GST-ready Billing Flow',
+        ],
     },
-    {
-        id: 'crm',
-        group: 'software',
-        icon: '🤝',
-        title: 'CRM Solutions',
-        shortText: 'Manage leads, customers and relationships efficiently.',
-        detailText:
-            'We help businesses manage leads, customers, follow-ups and sales activity in one place.',
-        points: ['Lead Management', 'Customer Records', 'Follow-ups', 'Sales Reports'],
-    },
-    {
-        id: 'erp',
-        group: 'software',
-        icon: '🏢',
-        title: 'ERP Solutions',
-        shortText: 'Streamline operations and manage your entire business in one place.',
-        detailText:
-            'ERP solutions help you manage inventory, billing, employees, finance and operations together.',
-        points: ['Inventory', 'Billing', 'Reports', 'Operations Management'],
-    },
+
+    // {
+    //     id: 'crm',
+    //     group: 'software',
+    //     icon: '🤝',
+    //     title: 'CRM Solutions',
+    //     shortText: 'Manage leads, customers and relationships efficiently.',
+    //     detailText:
+    //         'We help businesses manage leads, customers, follow-ups and sales activity in one place.',
+    //     points: ['Lead Management', 'Customer Records', 'Follow-ups', 'Sales Reports'],
+    // },
+    // {
+    //     id: 'erp',
+    //     group: 'software',
+    //     icon: '🏢',
+    //     title: 'ERP Solutions',
+    //     shortText: 'Streamline operations and manage your entire business in one place.',
+    //     detailText:
+    //         'ERP solutions help you manage inventory, billing, employees, finance and operations together.',
+    //     points: ['Inventory', 'Billing', 'Reports', 'Operations Management'],
+    // },
     {
         id: 'business-solutions',
         group: 'software',

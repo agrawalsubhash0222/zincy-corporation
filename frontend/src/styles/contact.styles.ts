@@ -5,22 +5,22 @@ const isMobile = width <= 600;
 
 export const styles = StyleSheet.create({
   screen: {
-  flex: 1,
-  backgroundColor: '#ffffff',
-},
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
 
-header: {
-  paddingTop: 0,
-  paddingBottom: 25,
-},
+  header: {
+    paddingTop: 0,
+    paddingBottom: 25,
+  },
 
-container: {
-  width: '100%',
-  maxWidth: 1200,
-  alignSelf: 'center',
-  paddingHorizontal: isMobile ? 22 : 24,
-  marginTop: isMobile ? -65 : -40,
-},
+  container: {
+    width: '100%',
+    maxWidth: 1200,
+    alignSelf: 'center',
+    paddingHorizontal: isMobile ? 22 : 24,
+    marginTop: isMobile ? -65 : -40,
+  },
 
   backText: {
     fontSize: 16,
@@ -95,8 +95,8 @@ container: {
 
   infoBox: {
     marginTop: 30,
-    marginBottom: 50,
-    padding: isMobile ? 22 : 30,
+    marginBottom: -50,
+    padding: isMobile ? 22 : 15,
     borderRadius: 22,
     backgroundColor: '#020B2D',
   },
@@ -115,18 +115,24 @@ container: {
     fontWeight: '600',
   },
   scrollView: {
-  flex: 1,
-  width: '100%',
-},
+    flex: 1,
+    width: '100%',
+  },
 
-scrollContent: {
-  paddingBottom: 60,
-},
+  scrollContent: {
+    paddingBottom: 60,
+  },
 
-container: {
-  width: '100%',
-  maxWidth: 1200,
-  alignSelf: 'center',
-  paddingHorizontal: 24,
-},
+  scroll: {
+    flex: 1,
+    width: '100%',
+  },
+
+  content: {
+    paddingTop: 70,
+    paddingBottom: 80,
+    paddingHorizontal: 40,
+    alignItems: 'center',
+  },
+
 });

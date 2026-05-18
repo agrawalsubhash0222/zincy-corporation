@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 
 import { NAV_ITEMS } from '@/constants/navigation';
-import { styles } from '@/styles/home.styles';
+import { styles } from '@/styles/home/home.styles';
 import { AppPath } from '@/types/navigation.types';
 
 import Logo from './Logo';

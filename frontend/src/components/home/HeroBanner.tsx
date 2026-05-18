@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text, View } from 'react-native';
 
-import { styles } from '@/styles/home.styles';
+import { styles } from '@/styles/home/home.styles';
 
 export default function HeroBanner() {
   return (
