@@ -116,19 +116,6 @@ export const detailsStyles = StyleSheet.create({
         maxWidth: 700,
     },
 
-    detailBody: {
-        flexDirection: isMobile ? 'column' : 'row',
-
-        gap: isMobile ? 22 : 32,
-
-        alignItems: isMobile ? 'stretch' : 'center',
-    },
-
-    detailLeft: {
-        flex: 1,
-        width: '100%',
-    },
-
     detailRight: {
         flex: 1,
         width: '100%',
@@ -241,4 +228,36 @@ export const detailsStyles = StyleSheet.create({
 
         fontWeight: '600',
     },
+
+    detailLeft: {
+        flex: 1,
+        width: isMobile ? '100%' : '45%',
+    },
+
+    detailImageBox: {
+        flex: 1,
+        width: isMobile ? '100%' : '50%',
+        minHeight: isMobile ? 220 : 280,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: isMobile ? 10 : 0,
+        marginBottom: isMobile ? 18 : 0,
+        borderRadius: 24,
+        overflow: 'hidden',
+
+    },
+
+    detailImage: {
+        width: '100%',
+        height: isMobile ? 290 : 470,
+        borderRadius: 24,
+    },
+    detailBody: {
+        flexDirection: isMobile ? 'column' : 'row',
+        alignItems: isMobile ? 'stretch' : 'center',
+        justifyContent: 'space-between',
+        gap: isMobile ? 22 : 40,
+        marginTop: 28,
+    },
+
 });

@@ -1,5 +1,11 @@
 import React from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import {
+    Image,
+    Text,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
+} from 'react-native';
 
 import { solutionItem } from '@/constants/solutions';
 import { styles } from '@/styles/solutions/solutions.styles';
@@ -10,6 +16,10 @@ type Props = {
 };
 
 export default function SolutionDetails({ item, onClose }: Props) {
+    const { width } = useWindowDimensions();
+
+    const isMobile = width <= 700;
+
     return (
         <View style={styles.detailPanel}>
             <TouchableOpacity
@@ -28,11 +38,14 @@ export default function SolutionDetails({ item, onClose }: Props) {
                 <View style={styles.detailHeadingBox}>
                     <Text style={styles.detailTitle}>{item.title}</Text>
 
-                    <Text style={styles.detailText}>{item.detailText}</Text>
+                    <Text style={styles.detailText}>
+                        {item.detailText}
+                    </Text>
                 </View>
             </View>
 
             <View style={styles.detailBody}>
+                {/* LEFT SIDE */}
                 <View style={styles.detailLeft}>
                     {item.points.map((point) => (
                         <View key={point} style={styles.pointRow}>
@@ -41,35 +54,42 @@ export default function SolutionDetails({ item, onClose }: Props) {
                         </View>
                     ))}
 
-                    <TouchableOpacity style={styles.quoteButton} activeOpacity={0.85}>
-                        <Text style={styles.quoteButtonText}>Get Started →</Text>
-                    </TouchableOpacity>
+                    {/* WEB BUTTON */}
+                    {!isMobile && (
+                        <TouchableOpacity
+                            style={styles.quoteButton}
+                            activeOpacity={0.85}
+                        >
+                            <Text style={styles.quoteButtonText}>
+                                Get Started →
+                            </Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
 
-                <View style={styles.detailRight}>
-                    <View style={styles.metricGrid}>
-                        <View style={styles.metricCard}>
-                            <Text style={styles.metricValue}>250+</Text>
-                            <Text style={styles.metricLabel}>Happy Clients</Text>
-                        </View>
-
-                        <View style={styles.metricCard}>
-                            <Text style={styles.metricValue}>500+</Text>
-                            <Text style={styles.metricLabel}>Projects</Text>
-                        </View>
-
-                        <View style={styles.metricCard}>
-                            <Text style={styles.metricValue}>2.5X</Text>
-                            <Text style={styles.metricLabel}>Growth</Text>
-                        </View>
-
-                        <View style={styles.metricCard}>
-                            <Text style={styles.metricValue}>98%</Text>
-                            <Text style={styles.metricLabel}>Satisfaction</Text>
-                        </View>
+                {/* IMAGE */}
+                {item.detailImage && (
+                    <View style={styles.detailImageBox}>
+                        <Image
+                            source={item.detailImage}
+                            style={styles.detailImage}
+                            resizeMode="contain"
+                        />
                     </View>
-                </View>
+                )}
             </View>
+
+            {/* MOBILE BUTTON */}
+            {isMobile && (
+                <TouchableOpacity
+                    style={styles.quoteButton}
+                    activeOpacity={0.85}
+                >
+                    <Text style={styles.quoteButtonText}>
+                        Get Started →
+                    </Text>
+                </TouchableOpacity>
+            )}
         </View>
     );
 }

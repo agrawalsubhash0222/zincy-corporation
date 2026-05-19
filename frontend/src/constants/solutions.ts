@@ -8,6 +8,7 @@ export type solutionItem = {
     shortText: string;
     detailText: string;
     points: string[];
+    detailImage?: any;
 };
 
 export const SOLUTIONS: solutionItem[] = [
@@ -78,7 +79,9 @@ export const SOLUTIONS: solutionItem[] = [
         detailText:
             'We create fast, modern and scalable mobile apps for Android and iOS platforms.',
         points: ['Android App', 'iOS App', 'API Integration', 'Secure Login'],
+        detailImage: require('../../assets/images/mobile-app-development.png'),
     },
+
     {
         id: 'web-development',
         group: 'software',
@@ -89,6 +92,7 @@ export const SOLUTIONS: solutionItem[] = [
             'We design and develop professional websites for businesses, e-commerce and solution platforms.',
         points: ['Business Website', 'E-commerce Website', 'Responsive UI', 'SEO Friendly'],
     },
+
     {
         id: 'billing-invoicing',
         group: 'software',
@@ -107,26 +111,6 @@ export const SOLUTIONS: solutionItem[] = [
         ],
     },
 
-    // {
-    //     id: 'crm',
-    //     group: 'software',
-    //     icon: '🤝',
-    //     title: 'CRM Solutions',
-    //     shortText: 'Manage leads, customers and relationships efficiently.',
-    //     detailText:
-    //         'We help businesses manage leads, customers, follow-ups and sales activity in one place.',
-    //     points: ['Lead Management', 'Customer Records', 'Follow-ups', 'Sales Reports'],
-    // },
-    // {
-    //     id: 'erp',
-    //     group: 'software',
-    //     icon: '🏢',
-    //     title: 'ERP Solutions',
-    //     shortText: 'Streamline operations and manage your entire business in one place.',
-    //     detailText:
-    //         'ERP solutions help you manage inventory, billing, employees, finance and operations together.',
-    //     points: ['Inventory', 'Billing', 'Reports', 'Operations Management'],
-    // },
     {
         id: 'business-solutions',
         group: 'software',

@@ -26,24 +26,14 @@ export const cardStyles = StyleSheet.create({
   },
 
   solutionCard: {
-    width: isMobile ? '100%' : isTablet ? '48%' : '31%',
-    maxWidth: '100%',
-    minWidth: 0,
-
-    flexShrink: 1,
-    flexGrow: 1,
-
-    backgroundColor: '#FFFFFF',
-    borderRadius: 22,
-    padding: 22,
-
-    borderWidth: 1,
-    borderColor: '#E3ECF7',
-
-    marginBottom: 18,
-
-    overflow: 'hidden',
-  },
+  width: isMobile ? '100%' : '31.5%',
+  minHeight: 270,
+  backgroundColor: '#ffffff',
+  borderRadius: 24,
+  padding: 28,
+  borderWidth: 1,
+  borderColor: '#DDEBFF',
+},
 
   activesolutionCard: {
     borderColor: '#0066FF',

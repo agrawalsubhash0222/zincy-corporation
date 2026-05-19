@@ -10,6 +10,8 @@ const { width } = Dimensions.get('window');
 const isMobile = width <= 700;
 
 export const styles = StyleSheet.create({
+
+  
   root: {
     flex: 1,
     backgroundColor: '#FFFFFF',
@@ -52,6 +54,7 @@ export const styles = StyleSheet.create({
 
     fontWeight: '500',
   },
+  
 
   ...tabsStyles,
   ...cardStyles,
