@@ -1,8 +1,9 @@
 import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 
-import { styles } from '@/styles/solutions/solutions.styles';
+import { router } from 'expo-router';
 
+import { styles } from '@/styles/solutions/solutions.styles';
 
 export default function SolutionsCTA() {
     return (
@@ -20,6 +21,7 @@ export default function SolutionsCTA() {
             <TouchableOpacity
                 style={styles.ctaButton}
                 activeOpacity={0.85}
+                onPress={() => router.push('/contact')}
             >
                 <Text style={styles.ctaButtonText}>
                     Get in Touch →
