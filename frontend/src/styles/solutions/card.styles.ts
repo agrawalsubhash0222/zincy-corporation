@@ -6,102 +6,166 @@ const isMobile = width <= 700;
 const isTablet = width > 700 && width <= 1050;
 
 export const cardStyles = StyleSheet.create({
-    servicesWrapper: {
-        width: '100%',
-    },
-
-    cardGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-
-        gap: isMobile ? 18 : 24,
-
-        marginBottom: 24,
-    },
-
-    solutionCard: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#D8E8FF',
-    borderRadius: 26,
-    padding: isMobile ? 28 : 36,
-    minHeight: isMobile ? 210 : 150,
-    flex: isMobile ? undefined : 1,
-    shadowColor: '#0877FF',
-    shadowOpacity: 0.06,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
+  servicesWrapper: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
   },
-  
-    activesolutionCard: {
-        borderColor: '#0066FF',
-        backgroundColor: '#F8FBFF',
-    },
 
-    iconBox: {
-        width: isMobile ? 58 : 64,
-        height: isMobile ? 58 : 64,
+  cardGrid: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
 
-        borderRadius: 18,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
 
-        backgroundColor: '#EAF6FF',
+    gap: isMobile ? 18 : 24,
 
-        alignItems: 'center',
-        justifyContent: 'center',
+    marginBottom: 24,
+  },
 
-        marginBottom: 20,
-    },
+  solutionCard: {
+    width: isMobile ? '100%' : isTablet ? '48%' : '31%',
+    maxWidth: '100%',
+    minWidth: 0,
 
-    icon: {
-        fontSize: isMobile ? 28 : 30,
-    },
+    flexShrink: 1,
+    flexGrow: 1,
 
-    cardTitle: {
-        color: '#020B2D',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    padding: 22,
 
-        fontSize: isMobile ? 22 : 24,
-        lineHeight: isMobile ? 29 : 32,
+    borderWidth: 1,
+    borderColor: '#E3ECF7',
 
-        fontWeight: '900',
+    marginBottom: 18,
 
-        marginBottom: 10,
+    overflow: 'hidden',
+  },
 
-        paddingRight: 58,
-    },
+  activesolutionCard: {
+    borderColor: '#0066FF',
+    backgroundColor: '#F8FBFF',
+  },
 
-    cardText: {
-        color: '#455B7B',
+  cardTop: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
 
-        fontSize: isMobile ? 15 : 16,
-        lineHeight: isMobile ? 24 : 27,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
 
-        fontWeight: '500',
+    marginBottom: 18,
+  },
 
-        paddingRight: isMobile ? 8 : 0,
-    },
+  solutionCardContent: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
 
-    arrowCircle: {
-        position: 'absolute',
+    flexShrink: 1,
+  },
 
-        top: isMobile ? 24 : 34,
-        right: isMobile ? 22 : 34,
+  iconBox: {
+    width: isMobile ? 58 : 64,
+    height: isMobile ? 58 : 64,
 
-        width: isMobile ? 44 : 46,
-        height: isMobile ? 44 : 46,
+    borderRadius: 18,
 
-        borderRadius: 23,
+    backgroundColor: '#EAF6FF',
 
-        borderWidth: 1,
-        borderColor: '#dbeafe',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
-        backgroundColor: '#ffffff',
+  icon: {
+    fontSize: isMobile ? 28 : 30,
+  },
 
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
+  cardTitle: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
 
-    activeArrow: {
-        backgroundColor: '#0875ff',
-        borderColor: '#0875ff',
-    },
+    color: '#020B2D',
+
+    fontSize: isMobile ? 22 : 24,
+    lineHeight: isMobile ? 29 : 32,
+
+    fontWeight: '900',
+
+    marginBottom: 10,
+
+    flexShrink: 1,
+    flexWrap: 'wrap',
+  },
+
+  cardText: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+
+    color: '#455B7B',
+
+    fontSize: isMobile ? 15 : 16,
+    lineHeight: isMobile ? 24 : 27,
+
+    fontWeight: '500',
+
+    flexShrink: 1,
+    flexWrap: 'wrap',
+  },
+
+  arrowCircle: {
+    width: isMobile ? 44 : 46,
+    height: isMobile ? 44 : 46,
+
+    borderRadius: 23,
+
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+
+    backgroundColor: '#ffffff',
+
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  activeArrow: {
+    backgroundColor: '#0875ff',
+    borderColor: '#0875ff',
+  },
+
+  solutionTitle: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+
+    color: '#020B2D',
+    fontSize: 24,
+    fontWeight: '900',
+
+    marginTop: 18,
+    marginBottom: 12,
+
+    flexShrink: 1,
+    flexWrap: 'wrap',
+  },
+
+  solutionDescription: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+
+    color: '#4C6380',
+    fontSize: 16,
+    lineHeight: 26,
+
+    flexShrink: 1,
+    flexWrap: 'wrap',
+  },
 });

@@ -11,30 +11,55 @@ type Props = {
   onPress: () => void;
 };
 
-export default function SolutionCard({ item, isActive, onPress }: Props) {
+export default function SolutionCard({
+  item,
+  isActive,
+  onPress,
+}: Props) {
   return (
     <TouchableOpacity
-      activeOpacity={0.85}
+      activeOpacity={0.88}
       onPress={onPress}
       style={[
         styles.solutionCard,
         isActive && styles.activesolutionCard,
       ]}
     >
-      <View style={styles.iconBox}>
-        <Text style={styles.icon}>{item.icon}</Text>
+      {/* Top Section */}
+      <View style={styles.cardTop}>
+        <View style={styles.iconBox}>
+          <Text style={styles.icon}>{item.icon}</Text>
+        </View>
+
+        <View
+          style={[
+            styles.arrowCircle,
+            isActive && styles.activeArrow,
+          ]}
+        >
+          <Ionicons
+            name={isActive ? 'chevron-up' : 'chevron-down'}
+            size={22}
+            color={isActive ? '#ffffff' : '#0875ff'}
+          />
+        </View>
       </View>
 
-      <Text style={styles.cardTitle}>{item.title}</Text>
+      {/* Content */}
+      <View style={styles.solutionCardContent}>
+        <Text
+          style={styles.cardTitle}
+          numberOfLines={2}
+        >
+          {item.title}
+        </Text>
 
-      <Text style={styles.cardText}>{item.shortText}</Text>
-
-      <View style={[styles.arrowCircle, isActive && styles.activeArrow]}>
-        <Ionicons
-          name={isActive ? 'chevron-up' : 'chevron-down'}
-          size={22}
-          color={isActive ? '#ffffff' : '#0875ff'}
-        />
+        <Text
+          style={styles.cardText}
+          numberOfLines={3}
+        >
+          {item.shortText}
+        </Text>
       </View>
     </TouchableOpacity>
   );
