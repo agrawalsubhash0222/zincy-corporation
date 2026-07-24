@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import {
     Animated,
     Keyboard,
@@ -11,7 +11,7 @@ import {
     View,
 } from 'react-native';
 
-import { submitContactEnquiry } from '@/services/contactService';
+import { submitEnquiry } from '@/services/enquiryService';
 import { styles } from '@/styles/contact.styles';
 
 const LOOKING_FOR_OPTIONS = [
@@ -136,11 +136,11 @@ export default function ContactForm() {
         try {
             setLoading(true);
 
-            await submitContactEnquiry({
+            await submitEnquiry({
                 fullName: fullName.trim(),
                 mobileNumber: mobileNumber.trim(),
                 email: email.trim(),
-                lookingFor: selectedOptions,
+                lookingFor: selectedOptions.join(', '),
                 message: message.trim(),
             });
 

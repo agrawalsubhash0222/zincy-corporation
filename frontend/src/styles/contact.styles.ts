@@ -90,7 +90,7 @@ export const styles = StyleSheet.create({
 
   scroll: {
     flex: 1,
-    width: '100%',
+    width: '105%',
   },
 
   content: {
