@@ -1,43 +1,98 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+# ==================================================
+# Zincy Corporation Monorepo
+# ==================================================
 
-# dependencies
-node_modules/
+# Environment secrets
+.env
+.env.*
+!.env.example
+!.env.local.example
+!.env.dev.example
+!.env.qa.example
+!.env.prod.example
 
-# Expo
-.expo/
-dist/
-web-build/
-expo-env.d.ts
+# ==================================================
+# Frontend
+# ==================================================
 
-# Native
-.kotlin/
-*.orig.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
+frontend/node_modules/
+frontend/.expo/
+frontend/.expo-shared/
+frontend/dist/
+frontend/web-build/
+frontend/build/
+frontend/.next/
+frontend/coverage/
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/.env
+frontend/.env.*
 
-# Metro
-.metro-health-check*
+# ==================================================
+# Backend
+# ==================================================
 
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
+backend/target/
+backend/build/
+backend/out/
+backend/.gradle/
+backend/.classpath
+backend/.project
+backend/.settings/
+backend/*.log
+backend/.env
+backend/.env.*
 
-# macOS
+# Maven
+backend/.mvn/wrapper/maven-wrapper.jar
+
+# ==================================================
+# IDE and operating system
+# ==================================================
+
+.idea/
+.vscode/
+*.iml
+
 .DS_Store
+Thumbs.db
+desktop.ini
+
+# ==================================================
+# Logs and runtime files
+# ==================================================
+
+logs/
+*.log
+*.pid
+*.tmp
+*.temp
+
+# ==================================================
+# Docker runtime data
+# ==================================================
+
+mysql_data/
+certbot/conf/
+certbot/www/
+docker-data/
+
+# ==================================================
+# Certificates and keys
+# ==================================================
+
 *.pem
+*.key
+*.crt
+*.p12
+*.pfx
 
-# local env files
-.env*.local
+# ==================================================
+# Archives and backups
+# ==================================================
 
-# typescript
-*.tsbuildinfo
-
-app-example
-
-# generated native folders
-/ios
-/android
+*.zip
+*.tar
+*.tar.gz
+*.bak

@@ -1,0 +1,14 @@
+services:
+  mysql:
+    container_name: zincy-local-mysql
+    ports:
+      - "3307:3306"
+
+  backend:
+    container_name: zincy-local-backend
+    ports:
+      - "8081:8081"
+
+volumes:
+  mysql_data:
+    name: zincy_local_mysql_data
