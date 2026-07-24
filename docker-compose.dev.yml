@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   mysql:
     image: mysql:8.0
@@ -19,17 +17,29 @@ services:
       - zincy_dev_mysql_data:/var/lib/mysql
 
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u${MYSQL_USER}", "-p${MYSQL_PASSWORD}"]
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-u${MYSQL_USER}",
+          "-p${MYSQL_PASSWORD}"
+        ]
       interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 20s
+
+    networks:
+      - zincy_dev_network
 
   backend:
     build:
       context: ./backend
 
     container_name: zincy-dev-backend
-
     restart: unless-stopped
 
     depends_on:
@@ -42,9 +52,11 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
       PORT: ${PORT}
+
       DB_URL: ${DB_URL}
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
+
       FRONTEND_URL: ${FRONTEND_URL}
 
       RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID}
@@ -55,17 +67,19 @@ services:
 
       TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
-      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER}
+      TWILIO_FROM_NUMBER: ${TWILIO_FROM_NUMBER}
 
     ports:
       - "8081:8081"
+
+    networks:
+      - zincy_dev_network
 
   frontend:
     build:
       context: ./frontend
 
     container_name: zincy-dev-frontend
-
     restart: unless-stopped
 
     depends_on:
@@ -81,5 +95,26 @@ services:
     ports:
       - "8082:80"
 
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "-q",
+          "--spider",
+          "http://127.0.0.1/health"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+    networks:
+      - zincy_dev_network
+
 volumes:
   zincy_dev_mysql_data:
+
+networks:
+  zincy_dev_network:
+    driver: bridge
