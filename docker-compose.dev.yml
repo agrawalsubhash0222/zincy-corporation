@@ -69,9 +69,6 @@ services:
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
       TWILIO_FROM_NUMBER: ${TWILIO_FROM_NUMBER}
 
-    ports:
-      - "8081:8081"
-
     networks:
       - zincy_dev_network
 
