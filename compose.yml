@@ -2,13 +2,16 @@ services:
   mysql:
     image: mysql:8.0
     restart: unless-stopped
+
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+
     volumes:
       - mysql_data:/var/lib/mysql
+
     healthcheck:
       test:
         [
@@ -19,16 +22,20 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+
     networks:
       - zincy-network
 
   backend:
     build:
       context: ./backend
+
     restart: unless-stopped
+
     depends_on:
       mysql:
         condition: service_healthy
+
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
       FRONTEND_URL: ${FRONTEND_URL}
@@ -49,8 +56,18 @@ services:
 
       MSG91_AUTHKEY: ${MSG91_AUTHKEY:-}
       MSG91_TEMPLATE_ID: ${MSG91_TEMPLATE_ID:-}
+      MSG91_SENDER: ${MSG91_SENDER:-}
+
+      PHONEPE_MERCHANT_ID: ${PHONEPE_MERCHANT_ID:-}
+      PHONEPE_CLIENT_ID: ${PHONEPE_CLIENT_ID:-}
+      PHONEPE_CLIENT_SECRET: ${PHONEPE_CLIENT_SECRET:-}
+
+      WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
+      WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN:-}
+
     expose:
       - "8081"
+
     networks:
       - zincy-network
 

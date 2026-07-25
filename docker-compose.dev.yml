@@ -1,74 +1,9 @@
 services:
   mysql:
-    image: mysql:8.0
     container_name: zincy-dev-mysql
-    restart: unless-stopped
-
-    environment:
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-
-
-    volumes:
-      - zincy_dev_mysql_data:/var/lib/mysql
-
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "mysqladmin",
-          "ping",
-          "-h",
-          "localhost",
-          "-u${MYSQL_USER}",
-          "-p${MYSQL_PASSWORD}"
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-
-    networks:
-      - zincy_dev_network
 
   backend:
-    build:
-      context: ./backend
-
     container_name: zincy-dev-backend
-    restart: unless-stopped
-
-    depends_on:
-      mysql:
-        condition: service_healthy
-
-    env_file:
-      - .env.dev
-
-    environment:
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
-      PORT: ${PORT}
-
-      DB_URL: ${DB_URL}
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
-
-      FRONTEND_URL: ${FRONTEND_URL}
-
-      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID}
-      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET}
-
-      MSG91_AUTHKEY: ${MSG91_AUTHKEY}
-      MSG91_TEMPLATE_ID: ${MSG91_TEMPLATE_ID}
-
-      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
-      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
-      TWILIO_FROM_NUMBER: ${TWILIO_FROM_NUMBER}
-
-    networks:
-      - zincy_dev_network
 
   frontend:
     build:
@@ -79,9 +14,6 @@ services:
 
     depends_on:
       - backend
-
-    env_file:
-      - .env.dev
 
     environment:
       EXPO_PUBLIC_APP_ENV: ${EXPO_PUBLIC_APP_ENV}
@@ -105,11 +37,12 @@ services:
       start_period: 20s
 
     networks:
-      - zincy_dev_network
+      - zincy-network
 
 volumes:
-  zincy_dev_mysql_data:
+  mysql_data:
+    name: zincy_dev_mysql_data
 
 networks:
-  zincy_dev_network:
-    driver: bridge
+  zincy-network:
+    name: zincy_dev_network

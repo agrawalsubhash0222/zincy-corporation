@@ -1,0 +1,48 @@
+services:
+  mysql:
+    container_name: zincy-mysql
+    restart: always
+
+  backend:
+    container_name: zincy-backend
+    restart: always
+
+  frontend:
+    build:
+      context: ./frontend
+
+    container_name: zincy-frontend
+    restart: always
+
+    depends_on:
+      - backend
+
+    ports:
+      - "80:80"
+      - "443:443"
+
+    volumes:
+      - ./certbot/www:/var/www/certbot:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+
+    networks:
+      - zincy-network
+
+  certbot:
+    image: certbot/certbot:latest
+    container_name: zincy-certbot
+
+    volumes:
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
+
+    networks:
+      - zincy-network
+
+volumes:
+  mysql_data:
+    name: zincy_mysql_data
+
+networks:
+  zincy-network:
+    name: zincy_prod_network
