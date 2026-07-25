@@ -44,7 +44,6 @@ public class OtpServiceTwilio {
 
         Twilio.init(accountSid, authToken);
 
-        System.out.println("Twilio initialized successfully.");
     }
 
     public void sendOtpTwilio(String mobile) {
@@ -60,7 +59,6 @@ public class OtpServiceTwilio {
                     "Your OTP is: " + otp
             ).create();
 
-            System.out.println("Twilio SID: " + message.getSid());
 
             otpStorage.put(mobile, otp);
 
