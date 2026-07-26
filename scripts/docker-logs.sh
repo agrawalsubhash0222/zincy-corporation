@@ -2,8 +2,18 @@
 set -Eeuo pipefail
 
 APP_DIR="/home/agrawalsubhash0222/zincy"
-COMPOSE_FILE="$APP_DIR/docker-compose.yml"
+BASE_COMPOSE_FILE="$APP_DIR/compose.yml"
+PROD_COMPOSE_FILE="$APP_DIR/docker-compose.prod.yml"
+ENV_FILE="$APP_DIR/.env.prod"
 DEFAULT_LINES=200
+
+compose() {
+  docker compose \
+    --env-file "$ENV_FILE" \
+    -f "$BASE_COMPOSE_FILE" \
+    -f "$PROD_COMPOSE_FILE" \
+    "$@"
+}
 
 usage() {
   echo "Usage:"
@@ -14,11 +24,6 @@ usage() {
   echo "  backend"
   echo "  mysql"
   echo "  all"
-  echo
-  echo "Examples:"
-  echo "  $0 backend"
-  echo "  $0 backend 500"
-  echo "  $0 all 100"
 }
 
 if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
@@ -49,11 +54,13 @@ if ! command -v docker >/dev/null 2>&1; then
   exit 1
 fi
 
-if [ ! -f "$COMPOSE_FILE" ]; then
-  echo "ERROR: Compose file not found:"
-  echo "$COMPOSE_FILE"
-  exit 1
-fi
+for file in "$BASE_COMPOSE_FILE" "$PROD_COMPOSE_FILE" "$ENV_FILE"; do
+  if [ ! -f "$file" ]; then
+    echo "ERROR: Required production file not found:"
+    echo "$file"
+    exit 1
+  fi
+done
 
 echo "========================================"
 echo "Zincy Production Docker Logs"
@@ -62,16 +69,7 @@ echo "Lines: $LINES"
 echo "========================================"
 
 if [ "$SERVICE" = "all" ]; then
-  docker compose \
-    -f "$COMPOSE_FILE" \
-    logs \
-    --tail "$LINES" \
-    --timestamps
+  compose logs --tail "$LINES" --timestamps
 else
-  docker compose \
-    -f "$COMPOSE_FILE" \
-    logs \
-    --tail "$LINES" \
-    --timestamps \
-    "$SERVICE"
+  compose logs --tail "$LINES" --timestamps "$SERVICE"
 fi

@@ -2,7 +2,17 @@
 set -Eeuo pipefail
 
 APP_DIR="/home/agrawalsubhash0222/zincy"
-COMPOSE_FILE="$APP_DIR/docker-compose.yml"
+BASE_COMPOSE_FILE="$APP_DIR/compose.yml"
+PROD_COMPOSE_FILE="$APP_DIR/docker-compose.prod.yml"
+ENV_FILE="$APP_DIR/.env.prod"
+
+compose() {
+  docker compose \
+    --env-file "$ENV_FILE" \
+    -f "$BASE_COMPOSE_FILE" \
+    -f "$PROD_COMPOSE_FILE" \
+    "$@"
+}
 
 echo "========================================"
 echo "Zincy Production Docker Cleanup"
@@ -26,13 +36,12 @@ docker system df
 echo
 echo "[2/5] Checking production containers..."
 
-if [ -f "$COMPOSE_FILE" ]; then
-  docker compose \
-    -f "$COMPOSE_FILE" \
-    ps
+if [ -f "$BASE_COMPOSE_FILE" ] &&
+   [ -f "$PROD_COMPOSE_FILE" ] &&
+   [ -f "$ENV_FILE" ]; then
+  compose ps
 else
-  echo "WARNING: Compose file not found:"
-  echo "$COMPOSE_FILE"
+  echo "WARNING: One or more production Compose files are missing."
 fi
 
 echo
