@@ -5,6 +5,19 @@ services:
   backend:
     container_name: zincy-dev-backend
 
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "-qO-",
+          "http://localhost:8081/actuator/health"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
   frontend:
     build:
       context: ./frontend
