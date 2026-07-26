@@ -96,3 +96,5 @@ docker-data/
 *.tar
 *.tar.gz
 *.bak
+# Production-generated files
+backups/
