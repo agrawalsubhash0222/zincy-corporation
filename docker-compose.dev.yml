@@ -41,6 +41,7 @@ services:
 
 volumes:
   mysql_data:
+    external: true
     name: zincy_dev_mysql_data
 
 networks:
