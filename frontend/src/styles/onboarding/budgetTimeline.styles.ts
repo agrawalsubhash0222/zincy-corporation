@@ -4,26 +4,25 @@ export const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#F8FAFC',
-        paddingHorizontal: 24,
-        paddingTop: 20,
-        paddingBottom: 24,
-        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingTop: 8,
+        paddingBottom: 12,
     },
 
     header: {
-        marginTop: 30,
-        marginBottom: 28,
+        marginTop: 0,
+        marginBottom: 22,
     },
 
     step: {
-        color: '#0ea5e9',
+        color: '#0EA5E9',
         fontWeight: '700',
-        fontSize: 14,
+        fontSize: 13,
         marginBottom: 8,
     },
 
     title: {
-        fontSize: 27,
+        fontSize: 24,
         fontWeight: '800',
         color: '#0F172A',
     },
@@ -32,58 +31,62 @@ export const styles = StyleSheet.create({
         marginTop: 8,
         fontSize: 15,
         color: '#64748B',
-        lineHeight: 23,
+        lineHeight: 22,
     },
 
     sectionTitle: {
         fontSize: 15,
         fontWeight: '800',
         color: '#334155',
-        marginBottom: 14,
-        marginTop: 6,
     },
 
     optionList: {
-        gap: 12,
-        marginBottom: 28,
+        gap: 10,
+        marginBottom: 18,
     },
 
     optionCard: {
-        minHeight: 58,
-        borderRadius: 16,
+        minHeight: 54,
+        borderRadius: 14,
         borderWidth: 1,
         borderColor: '#CBD5E1',
         backgroundColor: '#FFFFFF',
-        paddingHorizontal: 16,
-        paddingVertical: 14,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
     },
 
     optionCardActive: {
-        borderColor: '#0ea5e9',
+        borderColor: '#0EA5E9',
         backgroundColor: '#EFF6FF',
     },
 
     optionText: {
-        fontSize: 15,
+        flexShrink: 1,
+        paddingRight: 10,
+        fontSize: 14,
         fontWeight: '700',
         color: '#334155',
     },
 
     optionTextActive: {
-        color: '#0ea5e9',
+        color: '#0EA5E9',
     },
 
     button: {
-        height: 56,
-        borderRadius: 16,
-        backgroundColor: '#0ea5e9',
+        width: '88%',
+        maxWidth: 420,
+        minHeight: 50,
+        alignSelf: 'center',
+        borderRadius: 13,
+        backgroundColor: '#0EA5E9',
         justifyContent: 'center',
         alignItems: 'center',
         flexDirection: 'row',
-        marginBottom: 30,
+        marginTop: 8,
+        marginBottom: 2,
     },
 
     buttonText: {

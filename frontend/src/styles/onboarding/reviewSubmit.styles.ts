@@ -4,26 +4,25 @@ export const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#F8FAFC',
-        paddingHorizontal: 24,
-        paddingTop: 20,
-        paddingBottom: 24,
-        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingTop: 8,
+        paddingBottom: 12,
     },
 
     header: {
-        marginTop: 30,
-        marginBottom: 22,
+        marginTop: 0,
+        marginBottom: 20,
     },
 
     step: {
-        color: '#0ea5e9',
+        color: '#0EA5E9',
         fontWeight: '700',
-        fontSize: 14,
+        fontSize: 13,
         marginBottom: 8,
     },
 
     title: {
-        fontSize: 27,
+        fontSize: 24,
         fontWeight: '800',
         color: '#0F172A',
     },
@@ -32,15 +31,15 @@ export const styles = StyleSheet.create({
         marginTop: 8,
         fontSize: 15,
         color: '#64748B',
-        lineHeight: 23,
+        lineHeight: 22,
     },
 
     summaryCard: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 20,
+        borderRadius: 16,
         borderWidth: 1,
         borderColor: '#E2E8F0',
-        paddingVertical: 6,
+        paddingVertical: 4,
         overflow: 'hidden',
     },
 
@@ -54,69 +53,33 @@ export const styles = StyleSheet.create({
     },
 
     accordionHeader: {
-        minHeight: 64,
-        paddingHorizontal: 16,
-        paddingVertical: 14,
+        minHeight: 60,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
         flexDirection: 'row',
         alignItems: 'center',
     },
 
     summaryIconBox: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
+        width: 34,
+        height: 34,
+        borderRadius: 17,
         backgroundColor: '#EFF6FF',
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 12,
+        marginRight: 10,
     },
 
     accordionTitle: {
         flex: 1,
-        fontSize: 15,
+        fontSize: 14,
         fontWeight: '800',
         color: '#0F172A',
     },
 
-    noteCard: {
-        marginTop: 22,
-        backgroundColor: '#EFF6FF',
-        borderRadius: 16,
-        padding: 16,
-        flexDirection: 'row',
-        borderWidth: 1,
-        borderColor: '#BFDBFE',
-    },
-
-    noteText: {
-        flex: 1,
-        marginLeft: 10,
-        fontSize: 14,
-        lineHeight: 21,
-        color: '#1E3A8A',
-        fontWeight: '600',
-    },
-
-    button: {
-        height: 56,
-        borderRadius: 16,
-        backgroundColor: '#0ea5e9',
-        justifyContent: 'center',
-        alignItems: 'center',
-        flexDirection: 'row',
-        marginBottom: 30,
-    },
-
-    buttonText: {
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: '700',
-        marginRight: 8,
-    },
-
     accordionBody: {
-        paddingHorizontal: 16,
-        paddingBottom: 14,
+        paddingHorizontal: 14,
+        paddingBottom: 12,
     },
 
     detailRow: {
@@ -130,8 +93,9 @@ export const styles = StyleSheet.create({
     },
 
     detailLabel: {
-        width: '42%',
-        fontSize: 11,
+        width: '40%',
+        paddingRight: 8,
+        fontSize: 10,
         fontWeight: '800',
         color: '#64748B',
         textTransform: 'uppercase',
@@ -140,31 +104,66 @@ export const styles = StyleSheet.create({
     detailValue: {
         flex: 1,
         textAlign: 'right',
-        fontSize: 13,
+        fontSize: 12,
         lineHeight: 18,
         fontWeight: '700',
         color: '#0F172A',
     },
 
+    noteCard: {
+        marginTop: 16,
+        backgroundColor: '#EFF6FF',
+        borderRadius: 14,
+        padding: 14,
+        flexDirection: 'row',
+        borderWidth: 1,
+        borderColor: '#BFDBFE',
+    },
+
+    noteText: {
+        flex: 1,
+        marginLeft: 9,
+        fontSize: 13,
+        lineHeight: 20,
+        color: '#1E3A8A',
+        fontWeight: '600',
+    },
+
     scrollContent: {
-        paddingBottom: 120,
+        paddingBottom: 20,
     },
 
     bottomBar: {
-        paddingHorizontal: 20,
-        paddingTop: 12,
-        paddingBottom: 18,
-        backgroundColor: '#FFFFFF',
-        borderTopWidth: 1,
-        borderTopColor: '#E2E8F0',
+        alignItems: 'center',
+        paddingTop: 10,
+        paddingBottom: 2,
+        backgroundColor: '#F8FAFC',
+    },
+
+    button: {
+        width: '88%',
+        maxWidth: 420,
+        minHeight: 50,
+        borderRadius: 13,
+        backgroundColor: '#0EA5E9',
+        justifyContent: 'center',
+        alignItems: 'center',
+        flexDirection: 'row',
+    },
+
+    buttonText: {
+        color: '#FFFFFF',
+        fontSize: 15,
+        fontWeight: '700',
+        marginRight: 8,
     },
 
     buttonDisabled: {
-        opacity: 0.75,
+        opacity: 0.7,
     },
 
     successCard: {
-        marginBottom: 16,
+        marginBottom: 14,
         padding: 14,
         borderRadius: 14,
         backgroundColor: '#ECFDF5',
@@ -184,7 +183,7 @@ export const styles = StyleSheet.create({
     },
 
     errorCard: {
-        marginBottom: 16,
+        marginBottom: 14,
         padding: 14,
         borderRadius: 14,
         backgroundColor: '#FEF2F2',
@@ -204,62 +203,62 @@ export const styles = StyleSheet.create({
     },
 
     modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-},
+        flex: 1,
+        backgroundColor: 'rgba(15, 23, 42, 0.55)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 20,
+    },
 
-successDialog: {
-    width: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 24,
-    alignItems: 'center',
-},
+    successDialog: {
+        width: '100%',
+        maxWidth: 420,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        padding: 22,
+        alignItems: 'center',
+    },
 
-successIconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#DCFCE7',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-},
+    successIconCircle: {
+        width: 68,
+        height: 68,
+        borderRadius: 34,
+        backgroundColor: '#DCFCE7',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 14,
+    },
 
-dialogTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginBottom: 10,
-    textAlign: 'center',
-},
+    dialogTitle: {
+        marginBottom: 9,
+        color: '#0F172A',
+        fontSize: 20,
+        fontWeight: '800',
+        textAlign: 'center',
+    },
 
-dialogMessage: {
-    fontSize: 14,
-    lineHeight: 22,
-    color: '#475569',
-    textAlign: 'center',
-    marginBottom: 24,
-},
+    dialogMessage: {
+        marginBottom: 20,
+        color: '#475569',
+        fontSize: 14,
+        lineHeight: 21,
+        textAlign: 'center',
+    },
 
-continueButton: {
-    width: '100%',
-    height: 52,
-    borderRadius: 16,
-    backgroundColor: '#0ea5e9',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 30,
-},
+    continueButton: {
+        width: '88%',
+        minHeight: 50,
+        borderRadius: 13,
+        backgroundColor: '#0EA5E9',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexDirection: 'row',
+        gap: 8,
+    },
 
-continueButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '800',
-},
+    continueButtonText: {
+        color: '#FFFFFF',
+        fontSize: 15,
+        fontWeight: '800',
+    },
 });

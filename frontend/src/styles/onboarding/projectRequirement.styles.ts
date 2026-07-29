@@ -1,29 +1,28 @@
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 
 export const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#F8FAFC',
-        paddingHorizontal: 24,
-        paddingTop: 20,
-        paddingBottom: 24,
-        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingTop: 8,
+        paddingBottom: 12,
     },
 
     header: {
-        marginTop: 30,
-        marginBottom: 28,
+        marginTop: 0,
+        marginBottom: 22,
     },
 
     step: {
-        color: '#0ea5e9',
+        color: '#0EA5E9',
         fontWeight: '700',
-        fontSize: 14,
+        fontSize: 13,
         marginBottom: 8,
     },
 
     title: {
-        fontSize: 27,
+        fontSize: 24,
         fontWeight: '800',
         color: '#0F172A',
     },
@@ -32,21 +31,20 @@ export const styles = StyleSheet.create({
         marginTop: 8,
         fontSize: 15,
         color: '#64748B',
-        lineHeight: 23,
+        lineHeight: 22,
     },
 
     sectionTitle: {
         fontSize: 15,
         fontWeight: '800',
         color: '#334155',
-        marginBottom: 14,
     },
 
     chipWrap: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 12,
-        marginBottom: 28,
+        gap: 10,
+        marginBottom: 22,
     },
 
     chip: {
@@ -56,57 +54,67 @@ export const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#CBD5E1',
         borderRadius: 999,
-        paddingHorizontal: 14,
-        paddingVertical: 10,
+        paddingHorizontal: 12,
+        paddingVertical: 9,
     },
 
     chipActive: {
         backgroundColor: '#EFF6FF',
-        borderColor: '#0ea5e9',
+        borderColor: '#0EA5E9',
     },
 
     chipText: {
-        marginLeft: 8,
-        fontSize: 14,
+        marginLeft: 7,
+        fontSize: 13,
         fontWeight: '700',
         color: '#475569',
     },
 
     chipTextActive: {
-        color: '#0ea5e9',
+        color: '#0EA5E9',
     },
 
     field: {
-        marginBottom: 24,
+        marginBottom: 12,
     },
 
     label: {
         fontSize: 14,
         fontWeight: '700',
         color: '#334155',
-        marginBottom: 8,
     },
 
     textArea: {
-        minHeight: 150,
+        minHeight: 130,
         backgroundColor: '#FFFFFF',
         borderWidth: 1,
         borderColor: '#CBD5E1',
-        borderRadius: 16,
-        padding: 16,
+        borderRadius: 14,
+        padding: 14,
         fontSize: 15,
         color: '#0F172A',
         lineHeight: 22,
+
+        ...(Platform.OS === 'web'
+            ? ({
+                outlineStyle: 'none',
+                outlineWidth: 0,
+            } as object)
+            : {}),
     },
 
     button: {
-        height: 56,
-        borderRadius: 16,
-        backgroundColor: '#0ea5e9',
+        width: '88%',
+        maxWidth: 420,
+        minHeight: 50,
+        alignSelf: 'center',
+        borderRadius: 13,
+        backgroundColor: '#0EA5E9',
         justifyContent: 'center',
         alignItems: 'center',
         flexDirection: 'row',
-        marginBottom: 30,
+        marginTop: 8,
+        marginBottom: 2,
     },
 
     buttonText: {
