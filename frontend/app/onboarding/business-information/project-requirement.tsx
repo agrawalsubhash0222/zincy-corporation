@@ -7,13 +7,12 @@ import {
     Platform,
     SafeAreaView,
     ScrollView,
+    StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
-
-import { styles } from '@/styles/onboarding/projectRequirement.styles';
 
 const PROJECT_TYPES = [
     'Mobile App',
@@ -123,9 +122,9 @@ export default function ProjectRequirementScreen() {
     };
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.safeArea}>
             <KeyboardAvoidingView
-                style={{ flex: 1 }}
+                style={styles.keyboardView}
                 behavior={
                     Platform.OS === 'ios'
                         ? 'padding'
@@ -136,250 +135,393 @@ export default function ProjectRequirementScreen() {
                 }
             >
                 <ScrollView
-                    style={{ flex: 1 }}
+                    style={styles.scrollView}
+                    contentContainerStyle={
+                        styles.scrollContent
+                    }
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="always"
                     keyboardDismissMode="none"
-                    contentContainerStyle={{
-                        paddingBottom: 16,
-                    }}
                     automaticallyAdjustKeyboardInsets={
                         Platform.OS === 'ios'
                     }
                 >
-                    <View style={styles.header}>
-                        <View
-                            style={{
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                            }}
-                        >
-                            <View
-                                style={{
-                                    flex: 1,
-                                    flexDirection: 'row',
-                                    alignItems: 'center',
-                                }}
-                            >
-                                <TouchableOpacity
-                                    onPress={handleBack}
-                                    activeOpacity={0.8}
-                                    hitSlop={12}
-                                    style={{
-                                        width: 36,
-                                        height: 40,
-                                        alignItems: 'flex-start',
-                                        justifyContent: 'center',
-                                        marginRight: 3,
-                                    }}
+                    <View style={styles.content}>
+                        <View style={styles.header}>
+                            <View style={styles.headerTop}>
+                                <View
+                                    style={
+                                        styles.headingContainer
+                                    }
                                 >
-                                    <Ionicons
-                                        name="arrow-back"
-                                        size={25}
-                                        color="#0F172A"
-                                    />
-                                </TouchableOpacity>
+                                    <TouchableOpacity
+                                        onPress={handleBack}
+                                        activeOpacity={0.7}
+                                        hitSlop={12}
+                                        style={styles.backButton}
+                                    >
+                                        <Ionicons
+                                            name="arrow-back"
+                                            size={25}
+                                            color="#0F172A"
+                                        />
+                                    </TouchableOpacity>
 
-                                <Text
-                                    style={{
-                                        flexShrink: 1,
-                                        fontSize: 23,
-                                        fontWeight: '900',
-                                        color: '#0F172A',
-                                    }}
-                                >
-                                    Project Requirement
+                                    <Text style={styles.heading}>
+                                        Project Requirement
+                                    </Text>
+                                </View>
+
+                                <Text style={styles.stepText}>
+                                    Step 2 of 4
                                 </Text>
                             </View>
 
-                            <Text
-                                style={{
-                                    marginLeft: 8,
-                                    fontSize: 13,
-                                    fontWeight: '900',
-                                    color: '#0EA5E9',
-                                }}
-                            >
-                                Step 2 of 4
+                            <Text style={styles.description}>
+                                Select what you want to build and
+                                describe your requirement.
                             </Text>
                         </View>
 
-                        <Text
-                            style={{
-                                marginTop: 8,
-                                fontSize: 15,
-                                color: '#64748B',
-                                lineHeight: 22,
-                            }}
-                        >
-                            Select what you want to build and
-                            describe your requirement.
-                        </Text>
-                    </View>
-
-                    <View
-                        style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            marginBottom: 12,
-                        }}
-                    >
-                        <Text style={styles.sectionTitle}>
-                            What do you need?
-                        </Text>
-
-                        <Text
-                            style={{
-                                marginLeft: 3,
-                                color: '#EF4444',
-                                fontSize: 16,
-                                fontWeight: '900',
-                            }}
-                        >
-                            *
-                        </Text>
-                    </View>
-
-                    <View style={styles.chipWrap}>
-                        {PROJECT_TYPES.map((type) => {
-                            const selected =
-                                selectedTypes.includes(type);
-
-                            return (
-                                <TouchableOpacity
-                                    key={type}
-                                    activeOpacity={0.85}
-                                    style={[
-                                        styles.chip,
-                                        selected
-                                            ? styles.chipActive
-                                            : null,
-                                    ]}
-                                    onPress={() => {
-                                        toggleType(type);
-                                    }}
-                                >
-                                    <Ionicons
-                                        name={
-                                            selected
-                                                ? 'checkmark-circle'
-                                                : 'add-circle-outline'
-                                        }
-                                        size={18}
-                                        color={
-                                            selected
-                                                ? '#0EA5E9'
-                                                : '#64748B'
-                                        }
-                                    />
-
-                                    <Text
-                                        style={[
-                                            styles.chipText,
-                                            selected
-                                                ? styles.chipTextActive
-                                                : null,
-                                        ]}
-                                    >
-                                        {type}
-                                    </Text>
-                                </TouchableOpacity>
-                            );
-                        })}
-                    </View>
-
-                    {errors.projectTypes ? (
-                        <Text
-                            style={{
-                                marginTop: 6,
-                                marginBottom: 8,
-                                color: '#EF4444',
-                                fontSize: 12,
-                                fontWeight: '600',
-                            }}
-                        >
-                            {errors.projectTypes}
-                        </Text>
-                    ) : null}
-
-                    <View style={styles.field}>
-                        <View
-                            style={{
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                marginBottom: 8,
-                            }}
-                        >
-                            <Text style={styles.label}>
-                                Requirement Details
+                        <View style={styles.labelRow}>
+                            <Text style={styles.sectionTitle}>
+                                What do you need?
                             </Text>
 
-                            <Text
-                                style={{
-                                    marginLeft: 3,
-                                    color: '#EF4444',
-                                    fontSize: 16,
-                                    fontWeight: '900',
-                                }}
-                            >
+                            <Text style={styles.required}>
                                 *
                             </Text>
                         </View>
 
-                        <TextInput
-                            style={[
-                                styles.textArea,
-                                errors.requirement
-                                    ? {
-                                        borderColor: '#EF4444',
-                                    }
-                                    : null,
-                            ]}
-                            placeholder="Example: I need an app where customers can view products, place orders, track status, and admin can manage everything."
-                            placeholderTextColor="#94A3B8"
-                            selectionColor="#0EA5E9"
-                            underlineColorAndroid="transparent"
-                            multiline
-                            textAlignVertical="top"
-                            value={requirement}
-                            onChangeText={(text) => {
-                                setRequirement(text);
-                                clearError('requirement');
-                            }}
-                        />
+                        <View style={styles.chipWrap}>
+                            {PROJECT_TYPES.map((type) => {
+                                const selected =
+                                    selectedTypes.includes(type);
 
-                        {errors.requirement ? (
-                            <Text
-                                style={{
-                                    marginTop: 6,
-                                    color: '#EF4444',
-                                    fontSize: 12,
-                                    fontWeight: '600',
+                                return (
+                                    <TouchableOpacity
+                                        key={type}
+                                        activeOpacity={0.8}
+                                        style={[
+                                            styles.chip,
+                                            selected
+                                                ? styles.chipActive
+                                                : null,
+                                        ]}
+                                        onPress={() => {
+                                            toggleType(type);
+                                        }}
+                                    >
+                                        <Ionicons
+                                            name={
+                                                selected
+                                                    ? 'checkmark-circle'
+                                                    : 'add-circle-outline'
+                                            }
+                                            size={18}
+                                            color={
+                                                selected
+                                                    ? '#0EA5E9'
+                                                    : '#64748B'
+                                            }
+                                        />
+
+                                        <Text
+                                            style={[
+                                                styles.chipText,
+                                                selected
+                                                    ? styles.chipTextActive
+                                                    : null,
+                                            ]}
+                                        >
+                                            {type}
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+
+                        <View style={styles.errorContainer}>
+                            {errors.projectTypes ? (
+                                <Text style={styles.errorText}>
+                                    {errors.projectTypes}
+                                </Text>
+                            ) : null}
+                        </View>
+
+                        <View style={styles.field}>
+                            <View style={styles.labelRow}>
+                                <Text style={styles.label}>
+                                    Requirement Details
+                                </Text>
+
+                                <Text style={styles.required}>
+                                    *
+                                </Text>
+                            </View>
+
+                            <TextInput
+                                style={[
+                                    styles.textArea,
+                                    errors.requirement
+                                        ? styles.textAreaError
+                                        : null,
+                                ]}
+                                placeholder="Example: I need an app where customers can view products, place orders, track status, and admin can manage everything."
+                                placeholderTextColor="#94A3B8"
+                                selectionColor="#0EA5E9"
+                                underlineColorAndroid="transparent"
+                                multiline
+                                textAlignVertical="top"
+                                value={requirement}
+                                onChangeText={(text) => {
+                                    setRequirement(text);
+                                    clearError('requirement');
                                 }}
+                            />
+
+                            <View
+                                style={
+                                    styles.requirementErrorContainer
+                                }
                             >
-                                {errors.requirement}
-                            </Text>
-                        ) : null}
+                                {errors.requirement ? (
+                                    <Text style={styles.errorText}>
+                                        {errors.requirement}
+                                    </Text>
+                                ) : null}
+                            </View>
+                        </View>
                     </View>
                 </ScrollView>
 
-                <TouchableOpacity
-                    activeOpacity={0.85}
-                    style={styles.button}
-                    onPress={handleContinue}
-                >
-                    <Text style={styles.buttonText}>
-                        Continue
-                    </Text>
+                <View style={styles.footer}>
+                    <TouchableOpacity
+                        activeOpacity={0.85}
+                        style={styles.button}
+                        onPress={handleContinue}
+                    >
+                        <Text style={styles.buttonText}>
+                            Continue
+                        </Text>
 
-                    <Ionicons
-                        name="arrow-forward"
-                        size={18}
-                        color="#FFFFFF"
-                    />
-                </TouchableOpacity>
+                        <Ionicons
+                            name="arrow-forward"
+                            size={18}
+                            color="#FFFFFF"
+                        />
+                    </TouchableOpacity>
+                </View>
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
 }
+
+const styles = StyleSheet.create({
+    safeArea: {
+        flex: 1,
+        backgroundColor: '#F8FAFC',
+    },
+
+    keyboardView: {
+        flex: 1,
+    },
+
+    scrollView: {
+        flex: 1,
+    },
+
+    scrollContent: {
+        flexGrow: 1,
+        paddingTop: 10,
+        paddingBottom: 8,
+    },
+
+    /*
+     * This inner wrapper guarantees equal mobile spacing.
+     * Do not move this padding to SafeAreaView or ScrollView.
+     */
+    content: {
+        width: '100%',
+        paddingHorizontal: 16,
+    },
+
+    header: {
+        marginBottom: 22,
+    },
+
+    headerTop: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+
+    headingContainer: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        minWidth: 0,
+    },
+
+    backButton: {
+        width: 36,
+        height: 40,
+        alignItems: 'flex-start',
+        justifyContent: 'center',
+        marginRight: 4,
+    },
+
+    heading: {
+        flexShrink: 1,
+        color: '#0F172A',
+        fontSize: 22,
+        fontWeight: '900',
+    },
+
+    stepText: {
+        marginLeft: 8,
+        color: '#0EA5E9',
+        fontSize: 12,
+        fontWeight: '900',
+    },
+
+    description: {
+        marginTop: 8,
+        color: '#64748B',
+        fontSize: 14,
+        lineHeight: 21,
+    },
+
+    labelRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 10,
+    },
+
+    sectionTitle: {
+        color: '#334155',
+        fontSize: 14,
+        fontWeight: '800',
+    },
+
+    label: {
+        color: '#334155',
+        fontSize: 14,
+        fontWeight: '700',
+    },
+
+    required: {
+        marginLeft: 3,
+        color: '#EF4444',
+        fontSize: 15,
+        fontWeight: '900',
+    },
+
+    chipWrap: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 9,
+    },
+
+    chip: {
+        minHeight: 40,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: '#CBD5E1',
+        borderRadius: 999,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+    },
+
+    chipActive: {
+        backgroundColor: '#EFF6FF',
+        borderColor: '#0EA5E9',
+    },
+
+    chipText: {
+        marginLeft: 7,
+        color: '#475569',
+        fontSize: 13,
+        fontWeight: '700',
+    },
+
+    chipTextActive: {
+        color: '#0EA5E9',
+    },
+
+    errorContainer: {
+        minHeight: 28,
+        justifyContent: 'center',
+    },
+
+    field: {
+        width: '100%',
+    },
+
+    textArea: {
+        width: '100%',
+        minHeight: 130,
+        maxHeight: 190,
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: '#CBD5E1',
+        borderRadius: 14,
+        paddingHorizontal: 14,
+        paddingTop: 13,
+        paddingBottom: 13,
+        color: '#0F172A',
+        fontSize: 14,
+        lineHeight: 21,
+
+        ...(Platform.OS === 'web'
+            ? ({
+                  outlineStyle: 'none',
+                  outlineWidth: 0,
+                  boxSizing: 'border-box',
+              } as object)
+            : {}),
+    },
+
+    textAreaError: {
+        borderColor: '#EF4444',
+    },
+
+    requirementErrorContainer: {
+        minHeight: 24,
+        justifyContent: 'center',
+    },
+
+    errorText: {
+        color: '#EF4444',
+        fontSize: 12,
+        fontWeight: '600',
+    },
+
+    footer: {
+        width: '100%',
+        alignItems: 'center',
+        paddingTop: 8,
+        paddingBottom: 10,
+        backgroundColor: '#F8FAFC',
+    },
+
+    button: {
+        width: '88%',
+        maxWidth: 420,
+        minHeight: 50,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#0EA5E9',
+        borderRadius: 13,
+    },
+
+    buttonText: {
+        marginRight: 8,
+        color: '#FFFFFF',
+        fontSize: 15,
+        fontWeight: '800',
+    },
+});
