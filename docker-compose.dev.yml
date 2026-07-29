@@ -2,8 +2,24 @@ services:
   mysql:
     container_name: zincy-dev-mysql
 
+    ports:
+      - "127.0.0.1:3308:3306"
+
   backend:
     container_name: zincy-dev-backend
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "-qO-",
+          "http://localhost:8081/actuator/health"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
 
   frontend:
     build:
@@ -41,6 +57,7 @@ services:
 
 volumes:
   mysql_data:
+    external: true
     name: zincy_dev_mysql_data
 
 networks:

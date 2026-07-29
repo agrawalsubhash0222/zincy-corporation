@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 
-import { verifyWhatsAppOtpLogin } from '@/services/auth/loginWhatsapp/OtpServiceWhatsapp';
+import { verifyWhatsAppOtp } from '@/services/auth/loginWhatsapp/whatsappOtpService';
 
 function extractError(error: any) {
     return (
@@ -40,7 +40,11 @@ export function useOtp() {
             setLoading(true);
             setErrorMsg('');
 
-            await verifyWhatsAppOtpLogin(mobile, otp);
+            await verifyWhatsAppOtp({
+                mobile,
+                otp,
+                type: 'LOGIN',
+            });
 
             router.replace('/(website)');
         } catch (error: any) {

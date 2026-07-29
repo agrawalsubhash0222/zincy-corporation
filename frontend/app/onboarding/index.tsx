@@ -117,7 +117,7 @@ export default function OnboardingScreen() {
                 activeOpacity={0.9}
                 style={styles.primaryButton}
                 onPress={() => {
-                    router.push('/onboarding/business-details');
+                    router.push('/onboarding/business-information/business-details');
                 }}
             >
                 <Text style={styles.primaryButtonText}>

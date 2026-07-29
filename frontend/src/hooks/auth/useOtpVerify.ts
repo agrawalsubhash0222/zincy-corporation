@@ -1,7 +1,7 @@
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 
-import { verifyOtpLoginUI } from '@/services/auth/loginTwilio/verifyOtpLoginUI';
+import { verifyWhatsAppOtp } from '@/services/auth/loginWhatsapp/whatsappOtpService';
 import { saveSession } from '@/utils/session';
 
 function extractErrorMessage(error: any) {
@@ -62,7 +62,11 @@ export function useOtpVerify(redirectTo?: string | string[]) {
         try {
             setLoading(true);
 
-            const response = await verifyOtpLoginUI(mobile, otp, 'LOGIN');
+            const response = await verifyWhatsAppOtp({
+                mobile,
+                otp,
+                type: 'LOGIN',
+            });
 
             const userData =
                 response?.user ??
