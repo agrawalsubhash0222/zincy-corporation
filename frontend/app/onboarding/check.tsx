@@ -172,7 +172,7 @@ export default function OnboardingCheckScreen() {
                 case 'CHECKOUT':
                     router.push({
                         pathname:
-                            '/client-setup/checkout',
+                            '/client-setup/payment/checkout',
                         params: commonParams,
                     });
                     return;
@@ -180,7 +180,7 @@ export default function OnboardingCheckScreen() {
                 case 'SERVER_SETUP_SUCCESS':
                     router.push({
                         pathname:
-                            '/client-setup/server-success',
+                            '/client-setup/server/server-success',
                         params: commonParams,
                     });
                     return;
@@ -188,7 +188,7 @@ export default function OnboardingCheckScreen() {
                 case 'CLIENT_SETUP_SUCCESS':
                     router.push({
                         pathname:
-                            '/client-setup/success',
+                            '/client-setup/completion/success',
                         params: commonParams,
                     });
                     return;
@@ -220,7 +220,7 @@ export default function OnboardingCheckScreen() {
             ) {
                 router.push({
                     pathname:
-                        '/client-setup/checkout',
+                        '/client-setup/payment/checkout',
                     params: {
                         onboardingRequestId:
                             String(requestId),
@@ -234,7 +234,7 @@ export default function OnboardingCheckScreen() {
             ) {
                 router.push({
                     pathname:
-                        '/client-setup/server-success',
+                        '/client-setup/server/server-success',
                     params: {
                         onboardingRequestId:
                             String(requestId),
@@ -248,7 +248,7 @@ export default function OnboardingCheckScreen() {
             ) {
                 router.push({
                     pathname:
-                        '/client-setup/success',
+                        '/client-setup/completion/success',
                     params: {
                         onboardingRequestId:
                             String(requestId),

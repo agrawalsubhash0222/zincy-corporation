@@ -106,7 +106,7 @@ export default function BusinessDetailsScreen() {
             email: finalEmail,
         });
 
-        router.push('/onboarding/project-requirement');
+        router.push('/onboarding/business-information/project-requirement');
     };
 
     return (

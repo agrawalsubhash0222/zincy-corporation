@@ -63,7 +63,7 @@ export default function Navbar() {
         )}
 
         <Pressable
-          style={styles.loginButton}
+          style={styles.profileButton}
           onPress={goToProfile}
         >
           <Ionicons

@@ -136,7 +136,7 @@ export default function OnboardingRequestDetailsScreen() {
 
         if (clientSetupCompleted) {
             router.push({
-                pathname: '/client-setup/success',
+                pathname: '/client-setup/completion/success',
                 params: {
                     onboardingRequestId,
                     mode: 'view',
@@ -146,7 +146,7 @@ export default function OnboardingRequestDetailsScreen() {
         }
 
         router.push({
-            pathname: '/client-setup/business-owner-details',
+            pathname: '/client-setup/business-information/business-owner-details',
             params: {
                 onboardingRequestId,
                 businessName: request.businessName || '',
