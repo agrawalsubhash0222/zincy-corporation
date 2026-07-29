@@ -5,6 +5,7 @@ import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import com.twilio.Twilio;
@@ -14,6 +15,7 @@ import com.twilio.type.PhoneNumber;
 
 import jakarta.annotation.PostConstruct;
 
+@ConditionalOnProperty(name = "twilio.enabled", havingValue = "true")
 @Service
 public class OtpServiceTwilio {
 

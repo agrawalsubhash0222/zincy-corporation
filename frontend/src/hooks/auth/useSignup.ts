@@ -1,8 +1,10 @@
 import { Href, router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 
-import { sendOtpSignUpUI } from '@/services/auth/signUpTwilio/sendOtpSignUpUI';
-import { verifyOtpSignUpUI } from '@/services/auth/signUpTwilio/verifyOtpSignUpUI';
+import {
+    sendWhatsAppOtp,
+    verifyWhatsAppOtp,
+} from '@/services/auth/loginWhatsapp/whatsappOtpService';
 import { getSession, saveSession } from '@/utils/session';
 
 function extractErrorMessage(error: any) {
@@ -115,7 +117,7 @@ export function useSignup(redirectTo?: string | string[]) {
 
         try {
             setLoading(true);
-            await sendOtpSignUpUI(mobile, 'SIGNUP');
+            await sendWhatsAppOtp(mobile, 'SIGNUP');
             setOtpSent(true);
         } catch (error: any) {
             setErrorMsg(extractErrorMessage(error));
@@ -135,14 +137,14 @@ export function useSignup(redirectTo?: string | string[]) {
         try {
             setLoading(true);
 
-            const response = await verifyOtpSignUpUI(
-                name.trim(),
-                email.trim().toLowerCase(),
+            const response = await verifyWhatsAppOtp({
+                name: name.trim(),
+                email: email.trim().toLowerCase(),
                 password,
                 mobile,
                 otp,
-                'SIGNUP'
-            );
+                type: 'SIGNUP',
+            });
 
             const userData =
                 response?.user ??

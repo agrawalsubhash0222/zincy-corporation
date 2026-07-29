@@ -1,7 +1,7 @@
 import { Href, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 
-import { sendOtpLoginUI } from '@/services/auth/loginTwilio/sendOtpLoginUI';
+import { sendWhatsAppOtp } from '@/services/auth/loginWhatsapp/whatsappOtpService';
 import { getSession } from '@/utils/session';
 
 function extractErrorMessage(error: any) {
@@ -66,14 +66,14 @@ export function useLogin(redirectTo?: string | string[]) {
         try {
             setLoading(true);
 
-            await sendOtpLoginUI(mobile, 'LOGIN');
+            await sendWhatsAppOtp(mobile, 'LOGIN');
 
             router.replace({
                 pathname: '/auth/otp',
                 params: {
                     mobile,
                     type: 'LOGIN',
-                    channel: 'TWILIO',
+                    channel: 'WHATSAPP',
                     redirectTo: String(redirectPath),
                 },
             } as any);

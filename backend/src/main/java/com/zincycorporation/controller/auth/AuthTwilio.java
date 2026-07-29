@@ -4,7 +4,9 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -14,6 +16,7 @@ import com.zincycorporation.entity.Users;
 import com.zincycorporation.repository.UserRepository;
 import com.zincycorporation.service.otp.OtpServiceTwilio;
 
+@ConditionalOnProperty(name = "twilio.enabled", havingValue = "true")
 @RestController
 @RequestMapping("/api/auth")
 public class AuthTwilio {
@@ -23,6 +26,9 @@ public class AuthTwilio {
 
     @Autowired
     private OtpServiceTwilio otpServiceTwilio;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     @PostMapping("/send-otp-twilio")
     public ResponseEntity<?> sendOtpTwilio(
@@ -95,7 +101,7 @@ public class AuthTwilio {
             Users newUser = new Users();
             newUser.setName(name);
             newUser.setEmail(email);
-            newUser.setPassword(password);
+            newUser.setPassword(passwordEncoder.encode(password));
             newUser.setMobile(mobile);
             newUser.setIsVerified(true); // mark verified
 
