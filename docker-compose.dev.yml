@@ -2,6 +2,9 @@ services:
   mysql:
     container_name: zincy-dev-mysql
 
+    ports:
+      - "127.0.0.1:3308:3306"
+
   backend:
     container_name: zincy-dev-backend
 
