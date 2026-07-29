@@ -11,23 +11,14 @@ import {
 } from 'react-native';
 
 export default function OnboardingScreen() {
-    /**
-     * Back arrow inside the screen.
-     */
     const handleBack = () => {
-        router.replace('/(website)');
+        router.replace('/');
     };
 
-    /**
-     * Android phone navigation back button.
-     *
-     * Returning true tells Android that the back action
-     * has been handled, so the application will not close.
-     */
     useFocusEffect(
         useCallback(() => {
             const handleHardwareBack = () => {
-                router.replace('/(website)');
+                router.replace('/');
                 return true;
             };
 
@@ -51,7 +42,8 @@ export default function OnboardingScreen() {
                     alignItems: 'center',
                     paddingHorizontal: 20,
                     paddingTop: 12,
-                    marginBottom: -100,
+                    zIndex: 10,
+                    elevation: 10,
                 }}
             >
                 <TouchableOpacity
@@ -62,6 +54,9 @@ export default function OnboardingScreen() {
                         bottom: 10,
                         left: 10,
                         right: 10,
+                    }}
+                    style={{
+                        zIndex: 11,
                     }}
                 >
                     <Ionicons
@@ -117,7 +112,9 @@ export default function OnboardingScreen() {
                 activeOpacity={0.9}
                 style={styles.primaryButton}
                 onPress={() => {
-                    router.push('/onboarding/business-information/business-details');
+                    router.push(
+                        '/onboarding/business-information/business-details'
+                    );
                 }}
             >
                 <Text style={styles.primaryButtonText}>
