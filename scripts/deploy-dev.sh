@@ -116,6 +116,12 @@ for attempt in {1..30}; do
     docker inspect -f '{{.State.Running}}' zincy-dev-backend 2>/dev/null || true
   )"
 
+  BACKEND_HEALTH="$(
+    docker inspect \
+      -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' \
+      zincy-dev-backend 2>/dev/null || true
+  )"
+
   FRONTEND_RUNNING="$(
     docker inspect -f '{{.State.Running}}' zincy-dev-frontend 2>/dev/null || true
   )"
@@ -136,6 +142,7 @@ for attempt in {1..30}; do
      [ "$BACKEND_RUNNING" = "true" ] &&
      [ "$FRONTEND_RUNNING" = "true" ] &&
      [ "$MYSQL_HEALTH" = "healthy" ] &&
+     [ "$BACKEND_HEALTH" = "healthy" ] &&
      [ "$FRONTEND_HEALTH" = "healthy" ]; then
     break
   fi
@@ -173,25 +180,34 @@ echo "Internal Dev health check passed."
 echo
 echo "[8/8] Verifying public Dev HTTPS response..."
 
-HTTP_STATUS="$(
-  curl \
-    --silent \
-    --show-error \
-    --output /dev/null \
-    --write-out '%{http_code}' \
-    --max-time 20 \
-    https://dev.zincycorp.in/
-)"
+HTTP_STATUS="000"
 
-case "$HTTP_STATUS" in
-  200|301|302)
-    echo "Public Dev HTTPS check passed with status: $HTTP_STATUS"
-    ;;
-  *)
+for attempt in {1..12}; do
+  HTTP_STATUS="$(
+    curl \
+      --silent \
+      --show-error \
+      --output /dev/null \
+      --write-out '%{http_code}' \
+      --max-time 20 \
+      https://dev.zincycorp.in/ || true
+  )"
+
+  case "$HTTP_STATUS" in
+    200|301|302)
+      echo "Public Dev HTTPS check passed with status: $HTTP_STATUS"
+      break
+      ;;
+  esac
+
+  if [ "$attempt" -eq 12 ]; then
     compose logs --tail 100 frontend backend
     fail "Public Dev HTTPS check failed with status: $HTTP_STATUS"
-    ;;
-esac
+  fi
+
+  echo "Public endpoint returned $HTTP_STATUS; retrying..."
+  sleep 10
+done
 
 echo
 echo "========================================"
