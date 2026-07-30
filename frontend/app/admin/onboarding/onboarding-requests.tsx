@@ -19,6 +19,7 @@ import {
     ActivityIndicator,
     Alert,
     FlatList,
+    Platform,
     RefreshControl,
     SafeAreaView,
     Text,
@@ -200,32 +201,74 @@ export default function AdminOnboardingRequestsScreen() {
         );
     };
 
-    const handleStatusChange = (
+    const handleStatusChange = async (
         item: OnboardingRequest,
         nextStatus: OnboardingStatus
     ) => {
-        const currentStatus =
-            normalizeStatus(item.status);
+        const currentStatus = normalizeStatus(item.status);
 
-        if (
-            !canChangeStatus(
-                currentStatus,
-                nextStatus
-            )
-        ) {
+        if (!canChangeStatus(currentStatus, nextStatus)) {
             Alert.alert(
                 'Status change not allowed',
-                `Status cannot be changed from ${STATUS_LABEL[currentStatus]
-                } to ${STATUS_LABEL[nextStatus]}.`
+                `Status cannot be changed from ${STATUS_LABEL[currentStatus]} to ${STATUS_LABEL[nextStatus]}.`
             );
+
+            return;
+        }
+
+        const message =
+            `Move this request from ${STATUS_LABEL[currentStatus]} ` +
+            `to ${STATUS_LABEL[nextStatus]}?`;
+
+        const updateStatus = async () => {
+            try {
+                setUpdatingId(item.id);
+
+                const updatedRequest =
+                    await updateOnboardingRequestStatus(
+                        item.id,
+                        nextStatus
+                    );
+
+                updateRequestInList(updatedRequest);
+
+                Alert.alert(
+                    'Status updated',
+                    `Request moved to ${STATUS_LABEL[nextStatus]}.`
+                );
+            } catch (error) {
+                console.log(
+                    'Update onboarding status error:',
+                    error
+                );
+
+                Alert.alert(
+                    'Unable to update',
+                    getErrorMessage(
+                        error,
+                        'Unable to update status. Please try again.'
+                    )
+                );
+
+                await loadRequests(false);
+            } finally {
+                setUpdatingId(null);
+            }
+        };
+
+        if (Platform.OS === 'web') {
+            const confirmed = window.confirm(message);
+
+            if (confirmed) {
+                await updateStatus();
+            }
 
             return;
         }
 
         Alert.alert(
             'Update Status',
-            `Move this request from ${STATUS_LABEL[currentStatus]
-            } to ${STATUS_LABEL[nextStatus]}?`,
+            message,
             [
                 {
                     text: 'Cancel',
@@ -233,50 +276,7 @@ export default function AdminOnboardingRequestsScreen() {
                 },
                 {
                     text: 'Update',
-                    onPress: async () => {
-                        try {
-                            setUpdatingId(item.id);
-
-                            const updatedRequest =
-                                await updateOnboardingRequestStatus(
-                                    item.id,
-                                    nextStatus
-                                );
-
-                            updateRequestInList(
-                                updatedRequest
-                            );
-
-                            Alert.alert(
-                                'Status updated',
-                                `Request moved to ${STATUS_LABEL[
-                                nextStatus
-                                ]
-                                }.`
-                            );
-                        } catch (error) {
-                            console.log(
-                                'Update onboarding status error:',
-                                error
-                            );
-
-                            Alert.alert(
-                                'Unable to update',
-                                getErrorMessage(
-                                    error,
-                                    'Unable to update status. Please try again.'
-                                )
-                            );
-
-                            /*
-                             * Reload because another screen or process
-                             * may already have changed the status.
-                             */
-                            await loadRequests(false);
-                        } finally {
-                            setUpdatingId(null);
-                        }
-                    },
+                    onPress: updateStatus,
                 },
             ]
         );
@@ -544,122 +544,122 @@ export default function AdminOnboardingRequestsScreen() {
                                         alignItems: 'center',
                                     }}
                                 >
-                                <Ionicons
-                                    name="business-outline"
-                                    size={22}
-                                    color="#411FBC"
-                                />
+                                    <Ionicons
+                                        name="business-outline"
+                                        size={22}
+                                        color="#411FBC"
+                                    />
+
+                                    <Text
+                                        style={{
+                                            flex: 1,
+                                            fontSize: 17,
+                                            fontWeight: '900',
+                                            color: '#0F172A',
+                                        }}
+                                    >
+                                        {item.businessName ||
+                                            'Unnamed business'}
+                                    </Text>
+
+                                    <Text
+                                        style={{
+                                            color:
+                                                currentStatus ===
+                                                    'APPROVED'
+                                                    ? '#15803D'
+                                                    : currentStatus ===
+                                                        'REJECTED'
+                                                        ? '#DC2626'
+                                                        : '#CA8A04',
+                                            fontWeight: '900',
+                                        }}
+                                    >
+                                        {
+                                            STATUS_LABEL[
+                                            currentStatus
+                                            ]
+                                        }
+                                    </Text>
+                                </View>
 
                                 <Text
                                     style={{
-                                        flex: 1,
-                                        fontSize: 17,
-                                        fontWeight: '900',
-                                        color: '#0F172A',
+                                        marginTop: 10,
+                                        color: '#334155',
+                                        fontWeight: '700',
                                     }}
                                 >
-                                    {item.businessName ||
-                                        'Unnamed business'}
+                                    Owner:{' '}
+                                    {item.ownerName ||
+                                        'Not provided'}
                                 </Text>
 
                                 <Text
                                     style={{
-                                        color:
-                                            currentStatus ===
-                                                'APPROVED'
-                                                ? '#15803D'
-                                                : currentStatus ===
-                                                    'REJECTED'
-                                                    ? '#DC2626'
-                                                    : '#CA8A04',
-                                        fontWeight: '900',
+                                        marginTop: 4,
+                                        color: '#475569',
                                     }}
                                 >
-                                    {
-                                        STATUS_LABEL[
-                                        currentStatus
-                                        ]
-                                    }
+                                    Mobile:{' '}
+                                    {item.mobile ||
+                                        'Not provided'}
                                 </Text>
-                            </View>
 
-                            <Text
-                                style={{
-                                    marginTop: 10,
-                                    color: '#334155',
-                                    fontWeight: '700',
-                                }}
-                            >
-                                Owner:{' '}
-                                {item.ownerName ||
-                                    'Not provided'}
-                            </Text>
+                                <Text
+                                    style={{
+                                        marginTop: 4,
+                                        color: '#475569',
+                                    }}
+                                >
+                                    Email:{' '}
+                                    {item.email ||
+                                        'Not provided'}
+                                </Text>
 
-                            <Text
-                                style={{
-                                    marginTop: 4,
-                                    color: '#475569',
-                                }}
-                            >
-                                Mobile:{' '}
-                                {item.mobile ||
-                                    'Not provided'}
-                            </Text>
+                                <Text
+                                    style={{
+                                        marginTop: 10,
+                                        color: '#475569',
+                                    }}
+                                >
+                                    Services:{' '}
+                                    {item.projectTypes ||
+                                        'Not provided'}
+                                </Text>
 
-                            <Text
-                                style={{
-                                    marginTop: 4,
-                                    color: '#475569',
-                                }}
-                            >
-                                Email:{' '}
-                                {item.email ||
-                                    'Not provided'}
-                            </Text>
+                                <Text
+                                    style={{
+                                        marginTop: 6,
+                                        color: '#475569',
+                                    }}
+                                >
+                                    Budget:{' '}
+                                    {item.budget ||
+                                        'Not provided'}
+                                </Text>
 
-                            <Text
-                                style={{
-                                    marginTop: 10,
-                                    color: '#475569',
-                                }}
-                            >
-                                Services:{' '}
-                                {item.projectTypes ||
-                                    'Not provided'}
-                            </Text>
+                                <Text
+                                    style={{
+                                        marginTop: 6,
+                                        color: '#475569',
+                                    }}
+                                >
+                                    Timeline:{' '}
+                                    {item.timeline ||
+                                        'Not provided'}
+                                </Text>
 
-                            <Text
-                                style={{
-                                    marginTop: 6,
-                                    color: '#475569',
-                                }}
-                            >
-                                Budget:{' '}
-                                {item.budget ||
-                                    'Not provided'}
-                            </Text>
-
-                            <Text
-                                style={{
-                                    marginTop: 6,
-                                    color: '#475569',
-                                }}
-                            >
-                                Timeline:{' '}
-                                {item.timeline ||
-                                    'Not provided'}
-                            </Text>
-
-                            <Text
-                                style={{
-                                    marginTop: 10,
-                                    color: '#334155',
-                                    lineHeight: 20,
-                                }}
-                            >
-                                {item.requirement ||
-                                    'No requirement added'}
-                            </Text>
+                                <Text
+                                    style={{
+                                        marginTop: 10,
+                                        color: '#334155',
+                                        lineHeight: 20,
+                                    }}
+                                >
+                                    {item.requirement ||
+                                        'No requirement added'}
+                                </Text>
 
                                 <View
                                     style={{
@@ -712,138 +712,138 @@ export default function AdminOnboardingRequestsScreen() {
                                     padding: 16,
                                 }}
                             >
-                            {allowedNextStatuses.length >
-                                0 ? (
-                                <>
+                                {allowedNextStatuses.length >
+                                    0 ? (
+                                    <>
+                                        <Text
+                                            style={{
+                                                fontSize: 13,
+                                                fontWeight: '900',
+                                                color: '#0F172A',
+                                                marginBottom: 10,
+                                            }}
+                                        >
+                                            Change Status
+                                        </Text>
+
+                                        <View
+                                            style={{
+                                                flexDirection:
+                                                    'row',
+                                                flexWrap: 'wrap',
+                                                gap: 8,
+                                            }}
+                                        >
+                                            {STATUS_OPTIONS.map(
+                                                (status) => {
+                                                    const allowed =
+                                                        allowedNextStatuses.includes(
+                                                            status
+                                                        );
+
+                                                    const disabled =
+                                                        isUpdating ||
+                                                        !allowed;
+
+                                                    return (
+                                                        <TouchableOpacity
+                                                            key={
+                                                                status
+                                                            }
+                                                            activeOpacity={
+                                                                0.85
+                                                            }
+                                                            disabled={
+                                                                disabled
+                                                            }
+                                                            onPress={() =>
+                                                                handleStatusChange(
+                                                                    item,
+                                                                    status
+                                                                )
+                                                            }
+                                                            style={{
+                                                                paddingHorizontal: 12,
+                                                                paddingVertical: 9,
+                                                                borderRadius: 999,
+                                                                backgroundColor:
+                                                                    disabled
+                                                                        ? '#F1F5F9'
+                                                                        : status ===
+                                                                            'REJECTED'
+                                                                            ? '#DC2626'
+                                                                            : '#1D8F50',
+                                                                borderWidth: 1,
+                                                                borderColor:
+                                                                    disabled
+                                                                        ? '#CBD5E1'
+                                                                        : status ===
+                                                                            'REJECTED'
+                                                                            ? '#DC2626'
+                                                                            : '#1D8F50',
+                                                            }}
+                                                        >
+                                                            <Text
+                                                                style={{
+                                                                    fontSize: 12,
+                                                                    fontWeight:
+                                                                        '900',
+                                                                    color:
+                                                                        disabled
+                                                                            ? '#94A3B8'
+                                                                            : '#FFFFFF',
+                                                                }}
+                                                            >
+                                                                {
+                                                                    STATUS_LABEL[
+                                                                    status
+                                                                    ]
+                                                                }
+                                                            </Text>
+                                                        </TouchableOpacity>
+                                                    );
+                                                }
+                                            )}
+                                        </View>
+                                    </>
+                                ) : (
                                     <Text
                                         style={{
                                             fontSize: 13,
-                                            fontWeight: '900',
-                                            color: '#0F172A',
-                                            marginBottom: 10,
+                                            fontWeight: '800',
+                                            color: '#64748B',
                                         }}
                                     >
-                                        Change Status
+                                        This request has reached a
+                                        final status.
                                     </Text>
+                                )}
 
+                                {isUpdating && (
                                     <View
                                         style={{
+                                            marginTop: 12,
                                             flexDirection:
                                                 'row',
-                                            flexWrap: 'wrap',
+                                            alignItems: 'center',
                                             gap: 8,
                                         }}
                                     >
-                                        {STATUS_OPTIONS.map(
-                                            (status) => {
-                                                const allowed =
-                                                    allowedNextStatuses.includes(
-                                                        status
-                                                    );
+                                        <ActivityIndicator
+                                            size="small"
+                                            color="#0EA5E9"
+                                        />
 
-                                                const disabled =
-                                                    isUpdating ||
-                                                    !allowed;
-
-                                                return (
-                                                    <TouchableOpacity
-                                                        key={
-                                                            status
-                                                        }
-                                                        activeOpacity={
-                                                            0.85
-                                                        }
-                                                        disabled={
-                                                            disabled
-                                                        }
-                                                        onPress={() =>
-                                                            handleStatusChange(
-                                                                item,
-                                                                status
-                                                            )
-                                                        }
-                                                        style={{
-                                                            paddingHorizontal: 12,
-                                                            paddingVertical: 9,
-                                                            borderRadius: 999,
-                                                            backgroundColor:
-                                                                disabled
-                                                                    ? '#F1F5F9'
-                                                                    : status ===
-                                                                        'REJECTED'
-                                                                        ? '#DC2626'
-                                                                        : '#1D8F50',
-                                                            borderWidth: 1,
-                                                            borderColor:
-                                                                disabled
-                                                                    ? '#CBD5E1'
-                                                                    : status ===
-                                                                        'REJECTED'
-                                                                        ? '#DC2626'
-                                                                        : '#1D8F50',
-                                                        }}
-                                                    >
-                                                        <Text
-                                                            style={{
-                                                                fontSize: 12,
-                                                                fontWeight:
-                                                                    '900',
-                                                                color:
-                                                                    disabled
-                                                                        ? '#94A3B8'
-                                                                        : '#FFFFFF',
-                                                            }}
-                                                        >
-                                                            {
-                                                                STATUS_LABEL[
-                                                                status
-                                                                ]
-                                                            }
-                                                        </Text>
-                                                    </TouchableOpacity>
-                                                );
-                                            }
-                                        )}
+                                        <Text
+                                            style={{
+                                                color: '#64748B',
+                                                fontSize: 12,
+                                            }}
+                                        >
+                                            Updating status...
+                                        </Text>
                                     </View>
-                                </>
-                            ) : (
-                                <Text
-                                    style={{
-                                        fontSize: 13,
-                                        fontWeight: '800',
-                                        color: '#64748B',
-                                    }}
-                                >
-                                    This request has reached a
-                                    final status.
-                                </Text>
-                            )}
-
-                            {isUpdating && (
-                                <View
-                                    style={{
-                                        marginTop: 12,
-                                        flexDirection:
-                                            'row',
-                                        alignItems: 'center',
-                                        gap: 8,
-                                    }}
-                                >
-                                    <ActivityIndicator
-                                        size="small"
-                                        color="#0EA5E9"
-                                    />
-
-                                    <Text
-                                        style={{
-                                            color: '#64748B',
-                                            fontSize: 12,
-                                        }}
-                                    >
-                                        Updating status...
-                                    </Text>
-                                </View>
-                            )}
+                                )}
                             </View>
                         </View>
                     );
