@@ -114,7 +114,7 @@ export default function BusinessDetailsScreen() {
 
         if (!finalMobile) {
             newErrors.mobile =
-                'Please enter mobile number.';
+                'Please enter owner mobile number.';
         } else if (!isValidIndianMobile(finalMobile)) {
             newErrors.mobile =
                 'Please enter a valid 10-digit Indian mobile number.';
@@ -122,7 +122,7 @@ export default function BusinessDetailsScreen() {
 
         if (!finalEmail) {
             newErrors.email =
-                'Please enter email address.';
+                'Please enter owner email address.';
         } else if (!isValidEmail(finalEmail)) {
             newErrors.email =
                 'Please enter a valid email address.';
@@ -222,7 +222,7 @@ export default function BusinessDetailsScreen() {
                             label="Business Name"
                             icon="business-outline"
                             value={businessName}
-                            placeholder="ABC Hardware Store"
+                            placeholder="Business Name"
                             error={errors.businessName}
                             autoCapitalize="words"
                             returnKeyType="next"
@@ -240,7 +240,7 @@ export default function BusinessDetailsScreen() {
                             label="Owner Name"
                             icon="person-outline"
                             value={ownerName}
-                            placeholder="Rahul Kumar"
+                            placeholder="Owner Name"
                             error={errors.ownerName}
                             autoCapitalize="words"
                             returnKeyType="next"
@@ -255,10 +255,10 @@ export default function BusinessDetailsScreen() {
 
                         <InputField
                             inputRef={mobileRef}
-                            label="Mobile Number"
+                            label="Owner Mobile Number"
                             icon="call-outline"
                             value={mobile}
-                            placeholder="9876543210"
+                            placeholder="Owner Mobile Number"
                             error={errors.mobile}
                             keyboardType="phone-pad"
                             maxLength={10}
@@ -278,10 +278,10 @@ export default function BusinessDetailsScreen() {
 
                         <InputField
                             inputRef={emailRef}
-                            label="Email Address"
+                            label="Owner Email Address"
                             icon="mail-outline"
                             value={email}
-                            placeholder="owner@email.com"
+                            placeholder="Owner Email Address"
                             error={errors.email}
                             keyboardType="email-address"
                             autoCapitalize="none"
