@@ -33,24 +33,22 @@ export const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#64748B',
     },
+    
     header: {
-        height: 94,
-        paddingTop: 42,
+        height: 58,
+        backgroundColor: '#06223A',
+        borderBottomLeftRadius: 24,
+        borderBottomRightRadius: 24,
+        paddingTop: 0,
         paddingHorizontal: 18,
-        backgroundColor: '#071B34',
-        borderBottomLeftRadius: 28,
-        borderBottomRightRadius: 28,
         flexDirection: 'row',
         alignItems: 'center',
-        shadowColor: '#000',
-        shadowOpacity: 0.14,
-        shadowRadius: 12,
-        elevation: 8,
+        gap: 14,
     },
 
     backButton: {
-        width: 42,
-        height: 42,
+        width: 25,
+        height: 25,
         borderRadius: 21,
         backgroundColor: 'rgba(255,255,255,0.13)',
         alignItems: 'center',
@@ -216,124 +214,124 @@ export const styles = StyleSheet.create({
     },
 
     guestCard: {
-        marginHorizontal: 14,
-        marginTop: 14,
-        marginBottom: 18,
-        padding: 18,
-        borderRadius: 26,
-        backgroundColor: '#ecfdf5',
-        overflow: 'hidden',
+    marginHorizontal: 14,
+    marginTop: 14,
+    marginBottom: 18,
+    padding: 20,
+    borderRadius: 26,
+    backgroundColor: '#EAF6FF',
+    overflow: 'hidden',
 
-        borderWidth: 1,
-        borderColor: '#bbf7d0',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
 
-        shadowColor: '#064e3b',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.14,
-        shadowRadius: 18,
-        elevation: 8,
-    },
+    shadowColor: '#075985',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.14,
+    shadowRadius: 18,
+    elevation: 7,
+},
 
-    guestGlowOne: {
-        position: 'absolute',
-        width: 150,
-        height: 150,
-        borderRadius: 75,
-        backgroundColor: 'rgba(22, 163, 74, 0.18)',
-        top: -65,
-        right: -45,
-    },
+guestGlowOne: {
+    position: 'absolute',
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: 'rgba(14, 165, 233, 0.16)',
+    top: -75,
+    right: -45,
+},
 
-    guestGlowTwo: {
-        position: 'absolute',
-        width: 110,
-        height: 110,
-        borderRadius: 55,
-        backgroundColor: 'rgba(251, 191, 36, 0.16)',
-        bottom: -45,
-        left: -35,
-    },
+guestGlowTwo: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(59, 130, 246, 0.10)',
+    bottom: -55,
+    left: -35,
+},
 
-    guestTopRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 14,
-    },
+guestTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+},
 
-    guestAvatar: {
-        width: 58,
-        height: 58,
-        borderRadius: 20,
-        backgroundColor: '#d1fae5',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 13,
-        borderWidth: 1,
-        borderColor: '#86efac',
-    },
+guestAvatar: {
+    width: 58,
+    height: 58,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+    borderWidth: 1,
+    borderColor: '#7DD3FC',
+},
 
-    guestTextBox: {
-        flex: 1,
-    },
+guestTextBox: {
+    flex: 1,
+},
 
-    guestTitle: {
-        fontSize: 21,
-        fontWeight: '900',
-        color: '#052e2b',
-        letterSpacing: 0.2,
-    },
+guestTitle: {
+    fontSize: 21,
+    fontWeight: '900',
+    color: '#06213B',
+    letterSpacing: 0.2,
+},
 
-    guestMiniText: {
-        marginTop: 3,
-        fontSize: 12.5,
-        fontWeight: '600',
-        color: '#047857',
-    },
+guestMiniText: {
+    marginTop: 4,
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#0369A1',
+},
 
-    guestSubtitle: {
-        fontSize: 14,
-        lineHeight: 21,
-        color: '#334155',
-        fontWeight: '500',
-        marginBottom: 16,
-    },
+guestSubtitle: {
+    marginBottom: 18,
+    fontSize: 14,
+    lineHeight: 21,
+    fontWeight: '500',
+    color: '#334155',
+},
 
-    loginButton: {
-        height: 52,
-        borderRadius: 18,
-        backgroundColor: '#16a34a',
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 16,
+loginButton: {
+    height: 52,
+    borderRadius: 17,
+    backgroundColor: '#149BD7',
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
 
-        shadowColor: '#16a34a',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.28,
-        shadowRadius: 12,
-        elevation: 6,
-    },
+    shadowColor: '#0284C7',
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: 0.25,
+    shadowRadius: 11,
+    elevation: 5,
+},
 
-    loginButtonLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 9,
-    },
+loginButtonLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+},
 
-    loginButtonText: {
-        color: '#fff',
-        fontSize: 15.5,
-        fontWeight: '900',
-    },
+loginButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15.5,
+    fontWeight: '900',
+},
 
-    loginArrowCircle: {
-        width: 30,
-        height: 30,
-        borderRadius: 15,
-        backgroundColor: '#fff',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
+loginArrowCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+},
 
     guestBenefitsRow: {
         marginTop: 15,
@@ -554,8 +552,8 @@ export const styles = StyleSheet.create({
     },
 
     avatar: {
-        width: 58,
-        height: 58,
+        width: 35,
+        height: 35,
         borderRadius: 29,
         backgroundColor: '#10B981',
         alignItems: 'center',
@@ -565,7 +563,7 @@ export const styles = StyleSheet.create({
     },
 
     avatarText: {
-        fontSize: 28,
+        fontSize: 18,
         fontWeight: '900',
         color: '#06213B',
     },
@@ -646,15 +644,116 @@ export const styles = StyleSheet.create({
         justifyContent: 'center',
     },
 
-    quickIconCircle: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: '#ECFDF5',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 7,
-    },
+    subIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#EAF6FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+},
+
+editButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#149BD7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 5,
+},
+
+linkIconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#EAF6FF',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    alignItems: 'center',
+    justifyContent: 'center',
+},
+
+adminBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    backgroundColor: '#EAF6FF',
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#149BD7',
+},
+
+adminIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#EAF6FF',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    alignItems: 'center',
+    justifyContent: 'center',
+},
+
+heroCircleOne: {
+    position: 'absolute',
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: '#149BD7',
+    opacity: 0.12,
+    right: -30,
+    top: -25,
+},
+
+avatar: {
+    width: 35,
+    height: 35,
+    borderRadius: 18,
+    backgroundColor: '#38BDF8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.25)',
+},
+
+avatarText: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#06213B',
+},
+
+memberText: {
+    marginTop: 4,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#BAE6FD',
+},
+
+editBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#149BD7',
+    alignItems: 'center',
+    justifyContent: 'center',
+},
+
+quickIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#EAF6FF',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 7,
+},
 
     quickActionText: {
         fontSize: 11,

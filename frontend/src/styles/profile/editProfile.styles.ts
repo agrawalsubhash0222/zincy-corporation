@@ -13,11 +13,11 @@ export const styles = StyleSheet.create({
     },
 
     header: {
-        height: 118,
+        height: 60,
         backgroundColor: '#06223A',
         borderBottomLeftRadius: 24,
         borderBottomRightRadius: 24,
-        paddingTop: 52,
+        paddingTop: 0,
         paddingHorizontal: 18,
         flexDirection: 'row',
         alignItems: 'center',
@@ -25,8 +25,8 @@ export const styles = StyleSheet.create({
     },
 
     backBtn: {
-        width: 38,
-        height: 38,
+        width: 25,
+        height: 25,
         borderRadius: 19,
         backgroundColor: 'rgba(255,255,255,0.12)',
         alignItems: 'center',
@@ -51,8 +51,8 @@ export const styles = StyleSheet.create({
     },
 
     avatarCircle: {
-        width: 96,
-        height: 96,
+        width: 60,
+        height: 60,
         borderRadius: 48,
         backgroundColor: '#00C894',
         alignItems: 'center',
@@ -64,7 +64,7 @@ export const styles = StyleSheet.create({
 
     avatarText: {
         color: '#06223A',
-        fontSize: 42,
+        fontSize: 30,
         fontWeight: '900',
     },
 

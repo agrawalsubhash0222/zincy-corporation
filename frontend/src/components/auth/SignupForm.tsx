@@ -29,7 +29,7 @@ export default function SignupForm() {
     return (
         <View style={styles.formCard}>
             <View style={styles.iconCircle}>
-                <Ionicons name="person-add-outline" size={30} color="#16A34A" />
+                <Ionicons name="person-add-outline" size={30} color="#149BD7" />
             </View>
 
             <Text style={styles.title}>

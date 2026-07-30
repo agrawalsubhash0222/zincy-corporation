@@ -633,7 +633,7 @@ type PlanCardProps = {
     gstAmount: number;
     totalAmount: number;
     originalAmount?: number;
-    footerText?: string;
+    footerText?: string
     discountText?: string;
     disabled?: boolean;
     onPress: () => void;

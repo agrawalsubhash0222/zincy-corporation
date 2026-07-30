@@ -1,8 +1,7 @@
 import {
-  Entypo,
   Feather,
   Ionicons,
-  MaterialIcons,
+  MaterialIcons
 } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Text, TouchableOpacity, View } from 'react-native';
@@ -86,29 +85,6 @@ export default function LoggedInView({ user, onLogout }: Props) {
             </View>
           )}
         </View>
-      </View>
-
-      <View style={styles.quickActions}>
-        <TouchableOpacity activeOpacity={0.8} style={styles.quickActionItem}>
-          <View style={styles.quickIconCircle}>
-            <Entypo name="text-document" size={21} color="#071B34" />
-          </View>
-          <Text style={styles.quickActionText}>Orders</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity activeOpacity={0.8} style={styles.quickActionItem}>
-          <View style={styles.quickIconCircle}>
-            <Ionicons name="wallet-outline" size={22} color="#071B34" />
-          </View>
-          <Text style={styles.quickActionText}>Wallet</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity activeOpacity={0.8} style={styles.quickActionItem}>
-          <View style={styles.quickIconCircle}>
-            <Ionicons name="location-outline" size={22} color="#071B34" />
-          </View>
-          <Text style={styles.quickActionText}>Address</Text>
-        </TouchableOpacity>
       </View>
 
       {isAdmin && (

@@ -32,7 +32,7 @@ export default function LoginForm() {
                 <Ionicons
                     name="shield-checkmark"
                     size={30}
-                    color="#16A34A"
+                    color="#149BD7"
                 />
             </View>
 
