@@ -2,6 +2,8 @@ services:
   mysql:
     container_name: zincy-mysql
     restart: always
+    ports:
+      - "127.0.0.1:3309:3306"
 
   backend:
     container_name: zincy-backend
