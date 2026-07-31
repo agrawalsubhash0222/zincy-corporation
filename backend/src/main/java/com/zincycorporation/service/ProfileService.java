@@ -2,7 +2,7 @@ package com.zincycorporation.service;
 
 import org.springframework.stereotype.Service;
 
-import com.zincycorporation.dto.ProfileUpdateRequest;
+import com.zincycorporation.dto.UpdateProfileRequest;
 import com.zincycorporation.entity.Users;
 import com.zincycorporation.repository.UserRepository;
 
@@ -21,15 +21,25 @@ public class ProfileService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
     }
 
-    public Users updateProfile(String mobile, ProfileUpdateRequest request) {
+    public Users updateProfile(String mobile, UpdateProfileRequest request) {
         String normalizedMobile = normalizeMobile(mobile);
 
         Users user = userRepository.findByMobile(normalizedMobile)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        user.setFirstName(request.getFirstName());
-        user.setLastName(request.getLastName());
-        user.setEmail(request.getEmail());
+        user.setFirstName(request.getFirstName().trim());
+
+        user.setLastName(
+                request.getLastName() == null
+                        ? null
+                        : request.getLastName().trim());
+
+        user.setEmail(
+                request.getEmail() == null
+                        ? null
+                        : request.getEmail().trim().toLowerCase());
+
+        user.setProfileImageUrl(request.getProfileImageUrl());
 
         return userRepository.save(user);
     }

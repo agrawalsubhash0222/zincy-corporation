@@ -76,7 +76,8 @@ export function useOtpVerify(redirectTo?: string | string[]) {
 
             await saveSession({
                 id: userData.id,
-                name: userData.name ?? 'User',
+                firstName: userData.firstName ?? '',
+                lastName: userData.lastName ?? '',
                 email: userData.email ?? '',
                 mobile: userData.mobile ?? mobile,
                 role: userData.role ?? 'user',

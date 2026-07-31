@@ -6,7 +6,8 @@ import { styles } from '@/styles/auth/signup.styles';
 
 export default function SignupForm() {
     const {
-        name,
+        firstName,
+        lastName,
         email,
         password,
         mobile,
@@ -15,7 +16,8 @@ export default function SignupForm() {
         loading,
         otpSent,
         checkingSession,
-        setNameValue,
+        setFirstNameValue,
+        setLastNameValue,
         setEmailValue,
         setPasswordValue,
         setMobileValue,
@@ -45,12 +47,25 @@ export default function SignupForm() {
             {!otpSent ? (
                 <>
                     <View style={styles.inputBox}>
-                        <Ionicons name="person-outline" size={20} color="#64748B" />
+                        <Ionicons name="person-outline" size={20} color="#149BD7" />
                         <TextInput
-                            placeholder="Full name"
+                            placeholder="First name"
                             placeholderTextColor="#94A3B8"
-                            value={name}
-                            onChangeText={setNameValue}
+                            value={firstName}
+                            onChangeText={setFirstNameValue}
+                            autoCapitalize="words"
+                            style={styles.input}
+                        />
+                    </View>
+
+                    <View style={styles.inputBox}>
+                        <Ionicons name="person-outline" size={20} color="#149BD7" />
+                        <TextInput
+                            placeholder="Last name (optional)"
+                            placeholderTextColor="#94A3B8"
+                            value={lastName}
+                            onChangeText={setLastNameValue}
+                            autoCapitalize="words"
                             style={styles.input}
                         />
                     </View>

@@ -13,27 +13,29 @@ export default function ProfileScreen() {
     if (loading) {
         return (
             <View style={styles.loaderContainer}>
-                <ActivityIndicator size="large" color="#0B8F5A" />
+                <ActivityIndicator size="large" color="#149BD7" />
             </View>
         );
     }
 
     return (
-        <ScrollView
-            style={styles.container}
-            contentContainerStyle={styles.content}
-            showsVerticalScrollIndicator={false}
-        >
+        <View style={styles.container}>
             <ProfileHeader />
 
-            {user ? (
-                <LoggedInView
-                    user={user}
-                    onLogout={handleLogout}
-                />
-            ) : (
-                <GuestView />
-            )}
-        </ScrollView>
+            <ScrollView
+                style={styles.scrollView}
+                contentContainerStyle={styles.content}
+                showsVerticalScrollIndicator={false}
+            >
+                {user ? (
+                    <LoggedInView
+                        user={user}
+                        onLogout={handleLogout}
+                    />
+                ) : (
+                    <GuestView />
+                )}
+            </ScrollView>
+        </View>
     );
 }

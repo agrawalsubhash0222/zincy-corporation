@@ -59,8 +59,9 @@ public class AuthTwilio {
     @PostMapping("/verify-otp-twilio")
     public ResponseEntity<?> verifyOtpTwilio(
 
+            @RequestParam(required = false) String firstName,
+            @RequestParam(required = false) String lastName,
             @RequestParam(required = false) String email,
-            @RequestParam(required = false) String name,
             @RequestParam(required = false) String password,
 
             @RequestParam String mobile,
@@ -99,7 +100,14 @@ public class AuthTwilio {
 
             // ✅ CREATE USER HERE
             Users newUser = new Users();
-            newUser.setName(name);
+            if (firstName == null || firstName.isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "message", "First name is required"));
+            }
+
+            newUser.setFirstName(firstName.trim());
+            newUser.setLastName(
+                    lastName == null ? null : lastName.trim());
             newUser.setEmail(email);
             newUser.setPassword(passwordEncoder.encode(password));
             newUser.setMobile(mobile);

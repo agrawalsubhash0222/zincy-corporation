@@ -7,10 +7,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.zincycorporation.dto.ProfileUpdateRequest;
+import com.zincycorporation.dto.UpdateProfileRequest;
 import com.zincycorporation.entity.Users;
 import com.zincycorporation.service.ProfileService;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -28,8 +29,7 @@ public class ProfileController {
     @PutMapping("/{mobile}")
     public Users updateProfile(
             @PathVariable String mobile,
-            @RequestBody ProfileUpdateRequest request
-    ) {
+            @Valid @RequestBody UpdateProfileRequest request) {
         return profileService.updateProfile(mobile, request);
     }
 }

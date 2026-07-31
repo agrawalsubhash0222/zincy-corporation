@@ -22,70 +22,6 @@ export const infoStyles = StyleSheet.create({
         paddingBottom: 36,
     },
 
-    heroCard: {
-        marginBottom: 16,
-        padding: 18,
-        borderRadius: 26,
-        backgroundColor: WHITE,
-        borderWidth: 1,
-        borderColor: BORDER,
-        shadowColor: PRIMARY_DARK,
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-        elevation: 4,
-    },
-
-    heroRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-
-    heroIcon: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        marginRight: 14,
-        backgroundColor: PRIMARY_LIGHT,
-        borderWidth: 1,
-        borderColor: PRIMARY_BORDER,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-
-    heroTextBox: {
-        flex: 1,
-    },
-
-    heroTitle: {
-        fontSize: 22,
-        fontWeight: '900',
-        color: DARK,
-    },
-
-    heroSubtitle: {
-        marginTop: 5,
-        fontSize: 13,
-        lineHeight: 19,
-        fontWeight: '600',
-        color: MUTED,
-    },
-
-    badge: {
-        marginTop: 10,
-        alignSelf: 'flex-start',
-        paddingHorizontal: 10,
-        paddingVertical: 5,
-        borderRadius: 999,
-        backgroundColor: PRIMARY_LIGHT,
-    },
-
-    badgeText: {
-        fontSize: 11,
-        fontWeight: '900',
-        color: PRIMARY_DARK,
-    },
-
     actionCard: {
         marginBottom: 16,
         borderRadius: 24,
@@ -206,5 +142,47 @@ export const infoStyles = StyleSheet.create({
         fontSize: 11,
         fontWeight: '700',
         color: PRIMARY,
+    },
+
+    header: {
+        minHeight: 76,
+        paddingHorizontal: 18,
+        paddingVertical: 10,
+        backgroundColor: '#06223A',
+        borderBottomLeftRadius: 24,
+        borderBottomRightRadius: 24,
+        flexDirection: 'row',
+        alignItems: 'center',
+        zIndex: 10,
+        elevation: 6,
+    },
+
+    backButton: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        marginRight: 13,
+        backgroundColor: 'rgba(255,255,255,0.12)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+
+    headerTextBox: {
+        flex: 1,
+    },
+
+    headerTitle: {
+        fontSize: 21,
+        fontWeight: '900',
+        color: '#FFFFFF',
+    },
+
+    headerSubtitle: {
+        marginTop: 3,
+        paddingRight: 8,
+        fontSize: 12,
+        lineHeight: 16,
+        fontWeight: '600',
+        color: '#BAE6FD',
     },
 });

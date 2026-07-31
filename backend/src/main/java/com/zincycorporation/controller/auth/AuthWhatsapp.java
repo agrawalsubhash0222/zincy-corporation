@@ -24,7 +24,8 @@ public class AuthWhatsapp {
         }
 
         public record VerifyOtpRequest(
-                        String name,
+                        String firstName,
+                        String lastName,
                         String email,
                         String password,
                         String mobile,
@@ -122,7 +123,19 @@ public class AuthWhatsapp {
                         }
 
                         Users newUser = new Users();
-                        newUser.setName(request.name());
+                        String firstName = request.firstName() == null
+                                        ? ""
+                                        : request.firstName().trim();
+
+                        if (firstName.isBlank()) {
+                                throw new IllegalArgumentException("First name is required");
+                        }
+
+                        newUser.setFirstName(firstName);
+                        newUser.setLastName(
+                                        request.lastName() == null
+                                                        ? null
+                                                        : request.lastName().trim());
                         newUser.setEmail(request.email());
                         newUser.setPassword(
                                         passwordEncoder.encode(request.password()));

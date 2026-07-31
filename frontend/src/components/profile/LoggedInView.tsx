@@ -60,14 +60,14 @@ export default function LoggedInView({ user, onLogout }: Props) {
             style={styles.editBtn}
             onPress={() => router.push('/profile/edit-profile')}
           >
-            <Ionicons name="pencil" size={16} color="#FFFFFF" />
+            <Ionicons name="pencil" size={14} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
 
         <View style={styles.contactCompactBox}>
           <View style={styles.infoRow}>
             <View style={styles.infoIcon}>
-              <Feather name="smartphone" size={15} color="#10B981" />
+              <Feather name="smartphone" size={13} color="#38BDF8" />
             </View>
             <Text numberOfLines={1} style={styles.infoText}>
               {user.mobile}
@@ -77,7 +77,7 @@ export default function LoggedInView({ user, onLogout }: Props) {
           {!!user.email && (
             <View style={styles.infoRow}>
               <View style={styles.infoIcon}>
-                <MaterialIcons name="mail-outline" size={16} color="#10B981" />
+                <MaterialIcons name="mail-outline" size={14} color="#38BDF8" />
               </View>
               <Text numberOfLines={1} style={styles.infoText}>
                 {user.email}
@@ -145,7 +145,7 @@ function AdminMenuItem({ icon, title, subtitle, onPress }: AdminMenuItemProps) {
     >
       <View style={styles.adminMenuLeft}>
         <View style={styles.adminIconCircle}>
-          <Ionicons name={icon} size={22} color="#10B981" />
+          <Ionicons name={icon} size={22} color="#149BD7" />
         </View>
 
         <View style={styles.adminTextBox}>

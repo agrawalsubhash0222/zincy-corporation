@@ -6,7 +6,7 @@ import {
 } from '@/services/onboardingRequestService';
 
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { Href, router } from 'expo-router';
 
 import {
     useCallback,
@@ -321,7 +321,7 @@ export default function AdminOnboardingRequestsScreen() {
             >
                 <ActivityIndicator
                     size="large"
-                    color="#0EA5E9"
+                    color="#149BD7"
                 />
 
                 <Text
@@ -336,6 +336,14 @@ export default function AdminOnboardingRequestsScreen() {
         );
     }
 
+    const handleBack = () => {
+        if (router.canGoBack()) {
+            router.back();
+        } else {
+            router.replace('/profile' as Href);
+        }
+    };
+
     return (
         <SafeAreaView
             style={{
@@ -343,26 +351,66 @@ export default function AdminOnboardingRequestsScreen() {
                 backgroundColor: '#F8FAFC',
             }}
         >
-            <View style={{ padding: 18 }}>
-                <Text
+            <View
+                style={{
+                    minHeight: 76,
+                    paddingHorizontal: 18,
+                    paddingVertical: 10,
+                    backgroundColor: '#06223A',
+                    borderBottomLeftRadius: 24,
+                    borderBottomRightRadius: 24,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    elevation: 6,
+                    zIndex: 10,
+                }}
+            >
+                <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={handleBack}
                     style={{
-                        fontSize: 24,
-                        fontWeight: '900',
-                        color: '#0F172A',
+                        width: 32,
+                        height: 32,
+                        borderRadius: 16,
+                        marginRight: 13,
+                        backgroundColor: 'rgba(255,255,255,0.12)',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                     }}
                 >
-                    Onboarding Requests
-                </Text>
+                    <Ionicons
+                        name="arrow-back"
+                        size={22}
+                        color="#FFFFFF"
+                    />
+                </TouchableOpacity>
 
-                <Text
-                    style={{
-                        marginTop: 4,
-                        color: '#64748B',
-                    }}
-                >
-                    Showing {paginatedRequests.length} of{' '}
-                    {requests.length} requests
-                </Text>
+                <View style={{ flex: 1 }}>
+                    <Text
+                        numberOfLines={1}
+                        style={{
+                            fontSize: 21,
+                            fontWeight: '900',
+                            color: '#FFFFFF',
+                        }}
+                    >
+                        Onboarding Requests
+                    </Text>
+
+                    <Text
+                        numberOfLines={1}
+                        style={{
+                            marginTop: 3,
+                            fontSize: 12,
+                            lineHeight: 16,
+                            fontWeight: '600',
+                            color: '#BAE6FD',
+                        }}
+                    >
+                        Showing {paginatedRequests.length} of{' '}
+                        {requests.length} requests
+                    </Text>
+                </View>
             </View>
 
             <FlatList
@@ -382,6 +430,8 @@ export default function AdminOnboardingRequestsScreen() {
                     <RefreshControl
                         refreshing={refreshing}
                         onRefresh={handleRefresh}
+                        tintColor="#149BD7"
+                        colors={['#149BD7']}
                     />
                 }
                 ListEmptyComponent={
@@ -440,7 +490,7 @@ export default function AdminOnboardingRequestsScreen() {
                                     backgroundColor:
                                         page === 1
                                             ? '#E2E8F0'
-                                            : '#0EA5E9',
+                                            : '#149BD7',
                                 }}
                             >
                                 <Text
@@ -485,7 +535,7 @@ export default function AdminOnboardingRequestsScreen() {
                                     backgroundColor:
                                         page === totalPages
                                             ? '#E2E8F0'
-                                            : '#0EA5E9',
+                                            : '#149BD7',
                                 }}
                             >
                                 <Text
@@ -547,7 +597,7 @@ export default function AdminOnboardingRequestsScreen() {
                                     <Ionicons
                                         name="business-outline"
                                         size={22}
-                                        color="#411FBC"
+                                        color="#149BD7"
                                     />
 
                                     <Text
@@ -668,7 +718,7 @@ export default function AdminOnboardingRequestsScreen() {
                                         paddingHorizontal: 13,
                                         borderRadius: 12,
                                         backgroundColor:
-                                            '#EFF6FF',
+                                            '#EAF6FF',
                                         flexDirection: 'row',
                                         alignItems: 'center',
                                     }}
@@ -772,7 +822,7 @@ export default function AdminOnboardingRequestsScreen() {
                                                                         : status ===
                                                                             'REJECTED'
                                                                             ? '#DC2626'
-                                                                            : '#1D8F50',
+                                                                            : '#149BD7',
                                                                 borderWidth: 1,
                                                                 borderColor:
                                                                     disabled
@@ -780,7 +830,7 @@ export default function AdminOnboardingRequestsScreen() {
                                                                         : status ===
                                                                             'REJECTED'
                                                                             ? '#DC2626'
-                                                                            : '#1D8F50',
+                                                                            : '#149BD7',
                                                             }}
                                                         >
                                                             <Text
@@ -831,7 +881,7 @@ export default function AdminOnboardingRequestsScreen() {
                                     >
                                         <ActivityIndicator
                                             size="small"
-                                            color="#0EA5E9"
+                                            color="#149BD7"
                                         />
 
                                         <Text

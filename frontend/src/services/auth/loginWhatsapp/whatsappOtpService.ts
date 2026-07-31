@@ -3,7 +3,8 @@ import api from '@/services/api';
 export type AuthType = 'LOGIN' | 'SIGNUP';
 
 interface VerifyWhatsAppOtpRequest {
-    name?: string;
+    firstName?: string;
+    lastName?: string;
     email?: string;
     password?: string;
     mobile: string;

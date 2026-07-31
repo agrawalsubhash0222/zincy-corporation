@@ -26,7 +26,8 @@ function isValidOtp(otp: string) {
 }
 
 export function useSignup(redirectTo?: string | string[]) {
-    const [name, setName] = useState('');
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [mobile, setMobile] = useState('');
@@ -67,8 +68,13 @@ export function useSignup(redirectTo?: string | string[]) {
 
     const clearError = () => setErrorMsg('');
 
-    const setNameValue = (text: string) => {
-        setName(text);
+    const setFirstNameValue = (text: string) => {
+        setFirstName(text);
+        clearError();
+    };
+
+    const setLastNameValue = (text: string) => {
+        setLastName(text);
         clearError();
     };
 
@@ -95,8 +101,8 @@ export function useSignup(redirectTo?: string | string[]) {
     const handleOtpSend = async () => {
         clearError();
 
-        if (!name.trim()) {
-            setErrorMsg('Enter name');
+        if (!firstName.trim()) {
+            setErrorMsg('Enter first name');
             return;
         }
 
@@ -138,7 +144,8 @@ export function useSignup(redirectTo?: string | string[]) {
             setLoading(true);
 
             const response = await verifyWhatsAppOtp({
-                name: name.trim(),
+                firstName: firstName.trim(),
+                lastName: lastName.trim(),
                 email: email.trim().toLowerCase(),
                 password,
                 mobile,
@@ -154,13 +161,15 @@ export function useSignup(redirectTo?: string | string[]) {
 
             await saveSession({
                 id: userData.id,
-                name: userData.name ?? name.trim(),
+                firstName: userData.firstName ?? firstName.trim(),
+                lastName: userData.lastName ?? lastName.trim(),
                 email: userData.email ?? email.trim().toLowerCase(),
                 mobile: userData.mobile ?? mobile,
                 role: userData.role ?? 'user',
             });
 
-            setName('');
+            setFirstName('');
+            setLastName('');
             setEmail('');
             setPassword('');
             setMobile('');
@@ -177,7 +186,8 @@ export function useSignup(redirectTo?: string | string[]) {
     };
 
     return {
-        name,
+        firstName,
+        lastName,
         email,
         password,
         mobile,
@@ -186,7 +196,8 @@ export function useSignup(redirectTo?: string | string[]) {
         loading,
         otpSent,
         checkingSession,
-        setNameValue,
+        setFirstNameValue,
+        setLastNameValue,
         setEmailValue,
         setPasswordValue,
         setMobileValue,
