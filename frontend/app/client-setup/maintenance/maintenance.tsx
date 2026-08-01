@@ -627,7 +627,7 @@ export default function MaintenanceScreen() {
                         <Text
                             style={styles.description}
                         >
-                            Updates, bug fixes, monitoring and deployment support.
+                            Monitoring and deployment support are included. Application support can be discussed separately based on your requirements.
                         </Text>
 
                         <View style={styles.planRow}>
