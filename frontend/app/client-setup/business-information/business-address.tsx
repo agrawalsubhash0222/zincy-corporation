@@ -85,25 +85,33 @@ export default function BusinessAddressScreen() {
                     keyboardShouldPersistTaps="handled"
                     keyboardDismissMode="on-drag"
                 >
+                    <View style={styles.contentWrap}>
                     <View style={styles.headerRow}>
                         <TouchableOpacity
                             onPress={() => router.back()}
                             activeOpacity={0.75}
                             style={styles.backButton}
                         >
-                            <Ionicons name="arrow-back" size={26} color="#0F172A" />
+                            <Ionicons name="arrow-back" size={22} color="#0F172A" />
                         </TouchableOpacity>
 
-                        <Text style={styles.title}>Business Address</Text>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.title}>Business Address</Text>
+                            <Text style={styles.subtitle}>
+                                Step 3 of 4 · Complete business address
+                            </Text>
+                        </View>
                     </View>
 
-                    <Text style={styles.subtitle}>
-                        Step 3 of 4 • Complete business address
-                    </Text>
+                    <View style={styles.progressTrack}>
+                        <View style={[styles.progressFill, { width: '75%' }]} />
+                    </View>
 
                     <View style={styles.card}>
                         <View style={styles.infoBox}>
-                            <Ionicons name="location-outline" size={26} color="#0284C7" />
+                            <View style={styles.infoIconWrap}>
+                                <Ionicons name="location-outline" size={20} color="#0284C7" />
+                            </View>
 
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.infoTitle}>
@@ -145,33 +153,43 @@ export default function BusinessAddressScreen() {
                             }}
                         />
 
-                        <Input
-                            field="city"
-                            label="City"
-                            value={data.city || ''}
-                            placeholder="Enter city"
-                            error={errors.city}
-                            setFieldPositions={setFieldPositions}
-                            onFocus={scrollToInput}
-                            onChangeText={(value) => {
-                                updateData({ city: value });
-                                setErrors((prev: any) => ({ ...prev, city: '' }));
-                            }}
-                        />
+                        <View style={styles.row}>
+                            <View style={styles.rowItem}>
+                                <Input
+                                    field="city"
+                                    label="City"
+                                    value={data.city || ''}
+                                    placeholder="Enter city"
+                                    error={errors.city}
+                                    setFieldPositions={setFieldPositions}
+                                    onFocus={scrollToInput}
+                                    onChangeText={(value) => {
+                                        updateData({ city: value });
+                                        setErrors((prev: any) => ({ ...prev, city: '' }));
+                                    }}
+                                    noMargin
+                                />
+                            </View>
 
-                        <Input
-                            field="state"
-                            label="State"
-                            value={data.state || ''}
-                            placeholder="Enter state"
-                            error={errors.state}
-                            setFieldPositions={setFieldPositions}
-                            onFocus={scrollToInput}
-                            onChangeText={(value) => {
-                                updateData({ state: value });
-                                setErrors((prev: any) => ({ ...prev, state: '' }));
-                            }}
-                        />
+                            <View style={styles.rowItem}>
+                                <Input
+                                    field="state"
+                                    label="State"
+                                    value={data.state || ''}
+                                    placeholder="Enter state"
+                                    error={errors.state}
+                                    setFieldPositions={setFieldPositions}
+                                    onFocus={scrollToInput}
+                                    onChangeText={(value) => {
+                                        updateData({ state: value });
+                                        setErrors((prev: any) => ({ ...prev, state: '' }));
+                                    }}
+                                    noMargin
+                                />
+                            </View>
+                        </View>
+
+                        <View style={styles.spacer} />
 
                         <Input
                             field="pincode"
@@ -189,6 +207,7 @@ export default function BusinessAddressScreen() {
                                 });
                                 setErrors((prev: any) => ({ ...prev, pincode: '' }));
                             }}
+                            noMargin
                         />
                     </View>
 
@@ -200,6 +219,7 @@ export default function BusinessAddressScreen() {
                         <Text style={styles.nextButtonText}>Continue</Text>
                         <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
                     </TouchableOpacity>
+                    </View>
                 </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>
@@ -217,6 +237,7 @@ function Input({
     error,
     setFieldPositions,
     onFocus,
+    noMargin,
 }: {
     field: string;
     label: string;
@@ -228,10 +249,11 @@ function Input({
     error?: string;
     setFieldPositions: React.Dispatch<React.SetStateAction<any>>;
     onFocus: (field: string) => void;
+    noMargin?: boolean;
 }) {
     return (
         <View
-            style={styles.inputGroup}
+            style={[styles.inputGroup, noMargin && { marginBottom: 0 }]}
             onLayout={(event) => {
                 const y = event.nativeEvent.layout.y;
                 setFieldPositions((prev: any) => ({
@@ -255,7 +277,12 @@ function Input({
                 onFocus={() => onFocus(field)}
             />
 
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+            {error ? (
+                <View style={styles.errorRow}>
+                    <Ionicons name="alert-circle" size={13} color="#EF4444" />
+                    <Text style={styles.errorText}>{error}</Text>
+                </View>
+            ) : null}
         </View>
     );
 }
@@ -268,47 +295,78 @@ const styles = StyleSheet.create({
 
     scroll: {
         paddingHorizontal: 20,
-        paddingTop: 18,
-        paddingBottom: 50,
+        paddingTop: 12,
+        paddingBottom: 40,
+        alignItems: 'center',
+    },
+
+    contentWrap: {
+        width: '100%',
+        maxWidth: 520,
     },
 
     headerRow: {
-        marginTop: 30,
         flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 8,
+        alignItems: 'flex-start',
+        marginBottom: 20,
     },
 
     backButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        alignItems: 'center',
+        justifyContent: 'center',
         marginRight: 12,
     },
 
     title: {
-        fontSize: 27,
-        fontWeight: '900',
+        fontSize: 22,
+        fontWeight: '800',
         color: '#0F172A',
-        flex: 1,
+        letterSpacing: -0.3,
     },
 
     subtitle: {
-        marginTop: 6,
-        fontSize: 15,
+        marginTop: 4,
+        fontSize: 13,
         color: '#64748B',
-        marginLeft: 38,
+        fontWeight: '600',
+    },
+
+    progressTrack: {
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: '#E2E8F0',
+        overflow: 'hidden',
+        marginBottom: 24,
+    },
+
+    progressFill: {
+        height: '100%',
+        borderRadius: 3,
+        backgroundColor: '#0EA5E9',
     },
 
     card: {
-        marginTop: 24,
         backgroundColor: '#FFFFFF',
         borderRadius: 20,
         padding: 20,
         borderWidth: 1,
         borderColor: '#E2E8F0',
-        elevation: 3,
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 2,
     },
 
     infoBox: {
         flexDirection: 'row',
+        alignItems: 'flex-start',
         gap: 12,
         backgroundColor: '#F0F9FF',
         borderRadius: 16,
@@ -318,18 +376,40 @@ const styles = StyleSheet.create({
         marginBottom: 22,
     },
 
+    infoIconWrap: {
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        backgroundColor: '#E0F2FE',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+
     infoTitle: {
-        fontSize: 15,
-        fontWeight: '900',
+        fontSize: 14.5,
+        fontWeight: '800',
         color: '#0F172A',
     },
 
     infoText: {
-        marginTop: 5,
-        fontSize: 13,
-        lineHeight: 19,
+        marginTop: 4,
+        fontSize: 12.5,
+        lineHeight: 18,
         color: '#64748B',
-        fontWeight: '600',
+        fontWeight: '500',
+    },
+
+    row: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+
+    rowItem: {
+        flex: 1,
+    },
+
+    spacer: {
+        height: 18,
     },
 
     inputGroup: {
@@ -337,10 +417,10 @@ const styles = StyleSheet.create({
     },
 
     label: {
-        marginBottom: 8,
+        marginBottom: 7,
         color: '#334155',
-        fontWeight: '800',
-        fontSize: 14,
+        fontWeight: '700',
+        fontSize: 13,
     },
 
     required: {
@@ -351,39 +431,51 @@ const styles = StyleSheet.create({
         backgroundColor: '#F8FAFC',
         borderWidth: 1,
         borderColor: '#CBD5E1',
-        borderRadius: 14,
+        borderRadius: 12,
         paddingHorizontal: 14,
-        paddingVertical: 14,
-        fontSize: 15,
+        paddingVertical: 13,
+        fontSize: 14.5,
         color: '#0F172A',
-        fontWeight: '600',
+        fontWeight: '500',
     },
 
     inputError: {
         borderColor: '#EF4444',
+        backgroundColor: '#FEF2F2',
+    },
+
+    errorRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        marginTop: 6,
     },
 
     errorText: {
-        marginTop: 6,
         color: '#EF4444',
         fontSize: 12,
-        fontWeight: '700',
+        fontWeight: '600',
     },
 
     nextButton: {
-        marginTop: 28,
-        height: 54,
-        borderRadius: 16,
+        marginTop: 24,
+        height: 52,
+        borderRadius: 14,
         backgroundColor: '#0EA5E9',
         justifyContent: 'center',
         alignItems: 'center',
         flexDirection: 'row',
+        gap: 8,
+        shadowColor: '#0EA5E9',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+        elevation: 3,
     },
 
     nextButtonText: {
         color: '#FFFFFF',
-        fontWeight: '900',
-        fontSize: 16,
-        marginRight: 8,
+        fontWeight: '800',
+        fontSize: 15.5,
     },
 });

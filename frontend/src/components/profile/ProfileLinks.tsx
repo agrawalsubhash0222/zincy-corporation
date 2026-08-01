@@ -15,7 +15,7 @@ const LINKS = [
   {
     id: 'about',
     title: 'About Us',
-    subtitle: 'Know more about Rahul Hardware',
+    subtitle: 'Know more about Zincy Corporation',
     icon: 'storefront-outline' as const,
     route: '/shop/info/about',
   },
@@ -62,7 +62,7 @@ export default function ProfileLinks() {
           onPress={() => router.push(item.route as any)}
         >
           <View style={styles.linkIconCircle}>
-            <Ionicons name={item.icon} size={21} color="#10B981" />
+            <Ionicons name={item.icon} size={21} color="#149BD7" />
           </View>
 
           <View style={styles.linkTextBox}>

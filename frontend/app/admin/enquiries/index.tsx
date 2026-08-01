@@ -294,10 +294,10 @@ const styles = StyleSheet.create({
 
     cardTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
     avatar: {
-        width: 42,
-        height: 42,
+        width: 40,
+        height: 40,
         borderRadius: 21,
-        backgroundColor: '#10B981',
+        backgroundColor: '#0284C7',
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: 10,
@@ -305,7 +305,7 @@ const styles = StyleSheet.create({
     closedAvatar: {
         backgroundColor: '#94A3B8',
     },
-    avatarText: { color: '#FFFFFF', fontWeight: '900', fontSize: 17 },
+    avatarText: { color: '#FFFFFF', fontWeight: '900', fontSize: 15 },
     name: { fontSize: 16, fontWeight: '900', color: '#071B34' },
 
     mobile: { marginTop: 2, color: '#475569', fontWeight: '700' },
@@ -315,8 +315,8 @@ const styles = StyleSheet.create({
     },
 
     status: {
-        backgroundColor: '#DCFCE7',
-        color: '#16A34A',
+        backgroundColor: '#d6ecf8',
+        color: '#0284C7',
         paddingHorizontal: 10,
         paddingVertical: 5,
         borderRadius: 999,

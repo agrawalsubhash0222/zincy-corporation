@@ -13,6 +13,7 @@ import {
     ActivityIndicator,
     Alert,
     BackHandler,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
@@ -25,6 +26,20 @@ import {
     getServerSetupSummary,
     type ServerSetupSummary,
 } from '@/services/setupSummaryApi';
+
+// Keeps the layout from stretching edge-to-edge on wide
+// browser windows. Mobile is untouched — this only kicks in
+// on web, where full-width containers otherwise fill the
+// entire viewport.
+const WEB_CONTENT_MAX_WIDTH = 520;
+const isWeb = Platform.OS === 'web';
+const webConstrained = isWeb
+    ? {
+        width: '100%' as const,
+        maxWidth: WEB_CONTENT_MAX_WIDTH,
+        alignSelf: 'center' as const,
+    }
+    : {};
 
 type BillingType = 'MONTHLY' | 'YEARLY';
 
@@ -383,224 +398,230 @@ export default function ServerSuccessScreen() {
             edges={['top', 'left', 'right']}
         >
             <View style={styles.header}>
-                <TouchableOpacity
-                    onPress={navigateToServerSetup}
-                    style={styles.backButton}
-                    activeOpacity={0.7}
-                >
-                    <Ionicons
-                        name="arrow-back"
-                        size={24}
-                        color="#0F172A"
-                    />
-                </TouchableOpacity>
+                <View style={styles.headerInner}>
+                    <TouchableOpacity
+                        onPress={navigateToServerSetup}
+                        style={styles.backButton}
+                        activeOpacity={0.7}
+                    >
+                        <Ionicons
+                            name="arrow-back"
+                            size={24}
+                            color="#0F172A"
+                        />
+                    </TouchableOpacity>
 
-                <View style={styles.headerTextBox}>
-                    <Text style={styles.headerTitle}>
-                        Server Summary
-                    </Text>
+                    <View style={styles.headerTextBox}>
+                        <Text style={styles.headerTitle}>
+                            Server Summary
+                        </Text>
 
-                    <Text style={styles.headerSubtitle}>
-                        Review your deployment preference.
-                    </Text>
+                        <Text style={styles.headerSubtitle}>
+                            Review your deployment preference.
+                        </Text>
+                    </View>
+
+                    {loading && (
+                        <ActivityIndicator
+                            size="small"
+                            color="#0EA5E9"
+                        />
+                    )}
+
+                    <TouchableOpacity
+                        onPress={handleHome}
+                        activeOpacity={0.7}
+                        style={[
+                            styles.iconButton,
+                            styles.homeButton,
+                        ]}
+                        accessibilityLabel="Go to home"
+                    >
+                        <Ionicons
+                            name="home-outline"
+                            size={22}
+                            color="#0284C7"
+                        />
+                    </TouchableOpacity>
                 </View>
-
-                {loading && (
-                    <ActivityIndicator
-                        size="small"
-                        color="#0EA5E9"
-                    />
-                )}
-
-                <TouchableOpacity
-                    onPress={handleHome}
-                    activeOpacity={0.7}
-                    style={[
-                        styles.iconButton,
-                        styles.homeButton,
-                    ]}
-                    accessibilityLabel="Go to home"
-                >
-                    <Ionicons
-                        name="home-outline"
-                        size={22}
-                        color="#0284C7"
-                    />
-                </TouchableOpacity>
             </View>
 
             <ScrollView
-                contentContainerStyle={styles.scroll}
+                contentContainerStyle={styles.scrollOuter}
                 showsVerticalScrollIndicator={false}
             >
-                <View style={styles.statusIconBox}>
-                    <Ionicons
-                        name={
-                            skipped
-                                ? 'information-circle'
-                                : 'checkmark-circle'
-                        }
-                        size={48}
-                        color={
-                            skipped
-                                ? '#0284C7'
-                                : '#16A34A'
-                        }
-                    />
-                </View>
+                <View style={styles.scrollContent}>
+                    <View style={styles.statusIconBox}>
+                        <Ionicons
+                            name={
+                                skipped
+                                    ? 'information-circle'
+                                    : 'checkmark-circle'
+                            }
+                            size={48}
+                            color={
+                                skipped
+                                    ? '#0284C7'
+                                    : '#16A34A'
+                            }
+                        />
+                    </View>
 
-                <Text style={styles.title}>
-                    {skipped
-                        ? 'Server Setup Skipped'
-                        : 'Server Preference Saved'}
-                </Text>
+                    <Text style={styles.title}>
+                        {skipped
+                            ? 'Server Setup Skipped'
+                            : 'Server Preference Saved'}
+                    </Text>
 
-                <Text style={styles.subtitle}>
-                    {skipped
-                        ? 'You can finalize the server setup later during the deployment discussion.'
-                        : 'Your selected server preference has been saved for deployment planning.'}
-                </Text>
+                    <Text style={styles.subtitle}>
+                        {skipped
+                            ? 'You can finalize the server setup later during the deployment discussion.'
+                            : 'Your selected server preference has been saved for deployment planning.'}
+                    </Text>
 
-                {skipped ? (
-                    <View style={styles.infoCard}>
-                        <View style={styles.cardIcon}>
+                    {skipped ? (
+                        <View style={styles.infoCard}>
+                            <View style={styles.cardIcon}>
+                                <Ionicons
+                                    name="information-circle-outline"
+                                    size={22}
+                                    color="#0284C7"
+                                />
+                            </View>
+
+                            <View style={styles.flexOne}>
+                                <Text style={styles.cardTitle}>
+                                    Server can be selected later
+                                </Text>
+
+                                <Text style={styles.cardText}>
+                                    Our team will suggest a suitable
+                                    hosting option based on your
+                                    application, traffic and budget.
+                                </Text>
+                            </View>
+                        </View>
+                    ) : (
+                        <View style={styles.summaryCard}>
+                            <View style={styles.serverHeader}>
+                                <View style={styles.flexOne}>
+                                    <Text style={styles.label}>
+                                        Selected Server
+                                    </Text>
+
+                                    <Text style={styles.serverName}>
+                                        {serverSetup.serverName}
+                                    </Text>
+                                </View>
+
+                                <View style={styles.planBadge}>
+                                    <Text
+                                        style={
+                                            styles.planBadgeText
+                                        }
+                                    >
+                                        {billingLabel}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.divider} />
+
+                            <View style={styles.priceTop}>
+                                <Text style={styles.totalLabel}>
+                                    Estimated Total
+                                </Text>
+
+                                <Text style={styles.totalAmount}>
+                                    {formatAmount(
+                                        serverSetup.totalAmount
+                                    )}
+                                </Text>
+                            </View>
+
+                            <View style={styles.breakupBox}>
+                                <AmountRow
+                                    label="Server Estimated Amount"
+                                    value={serverSetup.baseAmount}
+                                />
+
+                                <AmountRow
+                                    label="GST / Tax (18%)"
+                                    value={serverSetup.gstAmount}
+                                />
+
+                                <View
+                                    style={
+                                        styles.breakupDivider
+                                    }
+                                />
+
+                                <AmountRow
+                                    label="Payable Estimate"
+                                    value={serverSetup.totalAmount}
+                                    strong
+                                    last
+                                />
+                            </View>
+
+                            <View style={styles.noteBox}>
+                                <Ionicons
+                                    name="alert-circle-outline"
+                                    size={17}
+                                    color="#92400E"
+                                />
+
+                                <Text style={styles.noteText}>
+                                    Final billing may vary based on
+                                    provider pricing, taxes, storage,
+                                    bandwidth and deployment
+                                    configuration.
+                                </Text>
+                            </View>
+                        </View>
+                    )}
+
+                    <View style={styles.nextCard}>
+                        <View style={styles.nextIconBox}>
                             <Ionicons
-                                name="information-circle-outline"
-                                size={22}
-                                color="#0284C7"
+                                name="construct-outline"
+                                size={24}
+                                color="#0EA5E9"
                             />
                         </View>
 
                         <View style={styles.flexOne}>
-                            <Text style={styles.cardTitle}>
-                                Server can be selected later
+                            <Text style={styles.nextTitle}>
+                                Next Step: Maintenance
                             </Text>
 
-                            <Text style={styles.cardText}>
-                                Our team will suggest a suitable
-                                hosting option based on your
-                                application, traffic and budget.
+                            <Text style={styles.nextText}>
+                                Choose how your application should
+                                be maintained after deployment.
                             </Text>
                         </View>
-                    </View>
-                ) : (
-                    <View style={styles.summaryCard}>
-                        <View style={styles.serverHeader}>
-                            <View style={styles.flexOne}>
-                                <Text style={styles.label}>
-                                    Selected Server
-                                </Text>
-
-                                <Text style={styles.serverName}>
-                                    {serverSetup.serverName}
-                                </Text>
-                            </View>
-
-                            <View style={styles.planBadge}>
-                                <Text
-                                    style={
-                                        styles.planBadgeText
-                                    }
-                                >
-                                    {billingLabel}
-                                </Text>
-                            </View>
-                        </View>
-
-                        <View style={styles.divider} />
-
-                        <View style={styles.priceTop}>
-                            <Text style={styles.totalLabel}>
-                                Estimated Total
-                            </Text>
-
-                            <Text style={styles.totalAmount}>
-                                {formatAmount(
-                                    serverSetup.totalAmount
-                                )}
-                            </Text>
-                        </View>
-
-                        <View style={styles.breakupBox}>
-                            <AmountRow
-                                label="Server Estimated Amount"
-                                value={serverSetup.baseAmount}
-                            />
-
-                            <AmountRow
-                                label="GST / Tax (18%)"
-                                value={serverSetup.gstAmount}
-                            />
-
-                            <View
-                                style={
-                                    styles.breakupDivider
-                                }
-                            />
-
-                            <AmountRow
-                                label="Payable Estimate"
-                                value={serverSetup.totalAmount}
-                                strong
-                                last
-                            />
-                        </View>
-
-                        <View style={styles.noteBox}>
-                            <Ionicons
-                                name="alert-circle-outline"
-                                size={17}
-                                color="#92400E"
-                            />
-
-                            <Text style={styles.noteText}>
-                                Final billing may vary based on
-                                provider pricing, taxes, storage,
-                                bandwidth and deployment
-                                configuration.
-                            </Text>
-                        </View>
-                    </View>
-                )}
-
-                <View style={styles.nextCard}>
-                    <View style={styles.nextIconBox}>
-                        <Ionicons
-                            name="construct-outline"
-                            size={24}
-                            color="#0EA5E9"
-                        />
-                    </View>
-
-                    <View style={styles.flexOne}>
-                        <Text style={styles.nextTitle}>
-                            Next Step: Maintenance
-                        </Text>
-
-                        <Text style={styles.nextText}>
-                            Choose how your application should
-                            be maintained after deployment.
-                        </Text>
                     </View>
                 </View>
             </ScrollView>
 
             <View style={styles.footer}>
-                <TouchableOpacity
-                    style={styles.button}
-                    activeOpacity={0.85}
-                    onPress={handleContinue}
-                >
-                    <Text style={styles.buttonText}>
-                        Continue to Maintenance
-                    </Text>
+                <View style={styles.footerInner}>
+                    <TouchableOpacity
+                        style={styles.button}
+                        activeOpacity={0.85}
+                        onPress={handleContinue}
+                    >
+                        <Text style={styles.buttonText}>
+                            Continue to Maintenance
+                        </Text>
 
-                    <Ionicons
-                        name="arrow-forward"
-                        size={18}
-                        color="#FFFFFF"
-                    />
-                </TouchableOpacity>
+                        <Ionicons
+                            name="arrow-forward"
+                            size={18}
+                            color="#FFFFFF"
+                        />
+                    </TouchableOpacity>
+                </View>
             </View>
         </SafeAreaView>
     );
@@ -668,6 +689,7 @@ const styles = StyleSheet.create({
         marginTop: 14,
         color: '#0F172A',
         fontSize: 17,
+        lineHeight: 21,
         fontWeight: '900',
     },
 
@@ -675,6 +697,7 @@ const styles = StyleSheet.create({
         marginTop: 5,
         color: '#64748B',
         fontSize: 13,
+        lineHeight: 19,
         textAlign: 'center',
     },
 
@@ -688,6 +711,7 @@ const styles = StyleSheet.create({
         marginTop: 14,
         color: '#0F172A',
         fontSize: 19,
+        lineHeight: 24,
         fontWeight: '900',
         textAlign: 'center',
     },
@@ -716,13 +740,18 @@ const styles = StyleSheet.create({
     },
 
     header: {
-        paddingHorizontal: 20,
-        paddingVertical: 14,
         borderBottomWidth: 1,
         borderBottomColor: '#E2E8F0',
         backgroundColor: '#FFFFFF',
+        width: '100%',
+    },
+
+    headerInner: {
+        paddingHorizontal: 20,
+        paddingVertical: 14,
         flexDirection: 'row',
         alignItems: 'center',
+        ...webConstrained,
     },
 
     backButton: {
@@ -740,6 +769,7 @@ const styles = StyleSheet.create({
 
     headerTitle: {
         fontSize: 23,
+        lineHeight: 28,
         fontWeight: '900',
         color: '#0F172A',
     },
@@ -752,11 +782,16 @@ const styles = StyleSheet.create({
         color: '#64748B',
     },
 
-    scroll: {
-        paddingHorizontal: 20,
+    scrollOuter: {
+        flexGrow: 1,
         paddingTop: 22,
         paddingBottom: 120,
+    },
+
+    scrollContent: {
+        paddingHorizontal: 20,
         alignItems: 'center',
+        ...webConstrained,
     },
 
     statusIconBox: {
@@ -774,6 +809,7 @@ const styles = StyleSheet.create({
     title: {
         marginTop: 18,
         fontSize: 23,
+        lineHeight: 28,
         fontWeight: '900',
         color: '#0F172A',
         textAlign: 'center',
@@ -813,6 +849,7 @@ const styles = StyleSheet.create({
 
     cardTitle: {
         fontSize: 14.5,
+        lineHeight: 19,
         fontWeight: '900',
         color: '#0F172A',
     },
@@ -844,6 +881,7 @@ const styles = StyleSheet.create({
 
     label: {
         fontSize: 11.5,
+        lineHeight: 14,
         fontWeight: '900',
         color: '#64748B',
     },
@@ -851,6 +889,7 @@ const styles = StyleSheet.create({
     serverName: {
         marginTop: 4,
         fontSize: 17,
+        lineHeight: 21,
         fontWeight: '900',
         color: '#0F172A',
     },
@@ -864,6 +903,7 @@ const styles = StyleSheet.create({
 
     planBadgeText: {
         fontSize: 11.5,
+        lineHeight: 14,
         fontWeight: '900',
         color: '#0284C7',
     },
@@ -884,12 +924,14 @@ const styles = StyleSheet.create({
     totalLabel: {
         flex: 1,
         fontSize: 12.5,
+        lineHeight: 16,
         fontWeight: '800',
         color: '#64748B',
     },
 
     totalAmount: {
         fontSize: 25,
+        lineHeight: 30,
         fontWeight: '900',
         color: '#16A34A',
     },
@@ -917,12 +959,14 @@ const styles = StyleSheet.create({
     breakupLabel: {
         flex: 1,
         fontSize: 12.5,
+        lineHeight: 16,
         fontWeight: '700',
         color: '#64748B',
     },
 
     breakupValue: {
         fontSize: 13,
+        lineHeight: 16,
         fontWeight: '900',
         color: '#0F172A',
     },
@@ -936,12 +980,14 @@ const styles = StyleSheet.create({
     payableLabel: {
         flex: 1,
         fontSize: 13,
+        lineHeight: 16,
         fontWeight: '900',
         color: '#0F172A',
     },
 
     payableValue: {
         fontSize: 15,
+        lineHeight: 18,
         fontWeight: '900',
         color: '#0F172A',
     },
@@ -990,6 +1036,7 @@ const styles = StyleSheet.create({
 
     nextTitle: {
         fontSize: 14,
+        lineHeight: 18,
         fontWeight: '900',
         color: '#0F172A',
     },
@@ -1007,12 +1054,16 @@ const styles = StyleSheet.create({
         right: 0,
         bottom: 0,
         left: 0,
-        paddingHorizontal: 20,
-        paddingTop: 13,
-        paddingBottom: 24,
         borderTopWidth: 1,
         borderTopColor: '#E2E8F0',
         backgroundColor: '#FFFFFF',
+    },
+
+    footerInner: {
+        paddingHorizontal: 20,
+        paddingTop: 13,
+        paddingBottom: 24,
+        ...webConstrained,
     },
 
     button: {
@@ -1028,6 +1079,7 @@ const styles = StyleSheet.create({
         marginRight: 8,
         color: '#FFFFFF',
         fontSize: 15,
+        lineHeight: 18,
         fontWeight: '900',
     },
 

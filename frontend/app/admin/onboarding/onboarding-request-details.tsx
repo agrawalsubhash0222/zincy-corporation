@@ -801,21 +801,25 @@ const styles = StyleSheet.create({
         paddingHorizontal: 14,
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#06223A',
         borderBottomWidth: 1,
-        borderBottomColor: '#E2E8F0',
+        borderBottomColor: '#0C3858',
     },
+
     backButton: {
-        width: 40,
-        height: 40,
+        width: 25,
+        height: 25,
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: 6,
+        backgroundColor: 'rgba(255, 255, 255, 0.91)',
+        borderRadius: 20,
     },
+
     headerTitle: {
         fontSize: 20,
         fontWeight: '900',
-        color: '#0F172A',
+        color: '#FFFFFF',
     },
     content: {
         padding: 16,
@@ -841,22 +845,25 @@ const styles = StyleSheet.create({
         color: '#64748B',
         textAlign: 'center',
     },
+
     retryButton: {
         marginTop: 18,
         paddingHorizontal: 20,
         paddingVertical: 12,
         borderRadius: 12,
-        backgroundColor: '#0EA5E9',
+        backgroundColor: '#149BD7',
     },
+
     retryText: {
         color: '#FFFFFF',
         fontWeight: '900',
     },
+
     summaryCard: {
         padding: 16,
         marginBottom: 14,
         borderRadius: 18,
-        backgroundColor: '#0F172A',
+        backgroundColor: '#06223A',
     },
     summaryTop: {
         flexDirection: 'row',
@@ -867,7 +874,7 @@ const styles = StyleSheet.create({
         height: 42,
         marginRight: 11,
         borderRadius: 13,
-        backgroundColor: '#E0F2FE',
+        backgroundColor: '#EAF6FF',
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -940,7 +947,7 @@ const styles = StyleSheet.create({
         height: 38,
         marginRight: 11,
         borderRadius: 12,
-        backgroundColor: '#E0F2FE',
+        backgroundColor: '#EAF6FF',
         alignItems: 'center',
         justifyContent: 'center',
     },

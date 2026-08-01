@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
@@ -14,6 +15,18 @@ import RazorpayCheckout from 'react-native-razorpay';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { API_BASE_URL } from '@/services/api';
+
+// Keeps the layout from stretching edge-to-edge on wide
+// browser windows. Mobile/native is untouched.
+const WEB_CONTENT_MAX_WIDTH = 520;
+const isWeb = Platform.OS === 'web';
+const webConstrained = isWeb
+    ? {
+        width: '100%' as const,
+        maxWidth: WEB_CONTENT_MAX_WIDTH,
+        alignSelf: 'center' as const,
+    }
+    : {};
 
 type PaymentMethod = 'PHONEPE' | 'GOOGLE_PAY' | 'NET_BANKING';
 
@@ -183,18 +196,20 @@ export default function PaymentScreen() {
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
-                <TouchableOpacity
-                    onPress={() => router.back()}
-                    style={styles.iconButton}
-                >
-                    <Ionicons name="arrow-back" size={24} color="#0F172A" />
-                </TouchableOpacity>
+                <View style={styles.headerInner}>
+                    <TouchableOpacity
+                        onPress={() => router.back()}
+                        style={styles.iconButton}
+                    >
+                        <Ionicons name="arrow-back" size={24} color="#0F172A" />
+                    </TouchableOpacity>
 
-                <View style={styles.headerText}>
-                    <Text style={styles.title}>Choose payment method</Text>
-                    <Text style={styles.subtitle}>
-                        Secure payment powered by Razorpay
-                    </Text>
+                    <View style={styles.headerText}>
+                        <Text style={styles.title}>Choose payment method</Text>
+                        <Text style={styles.subtitle}>
+                            Secure payment powered by Razorpay
+                        </Text>
+                    </View>
                 </View>
             </View>
 
@@ -278,30 +293,32 @@ export default function PaymentScreen() {
             </ScrollView>
 
             <View style={styles.footer}>
-                <TouchableOpacity
-                    disabled={processing || !onboardingRequestId}
-                    activeOpacity={0.85}
-                    onPress={startPayment}
-                    style={[
-                        styles.payButton,
-                        processing && styles.payButtonDisabled,
-                    ]}
-                >
-                    {processing ? (
-                        <ActivityIndicator color="#FFFFFF" />
-                    ) : (
-                        <>
-                            <Ionicons
-                                name="lock-closed-outline"
-                                size={18}
-                                color="#FFFFFF"
-                            />
-                            <Text style={styles.payButtonText}>
-                                Continue Securely
-                            </Text>
-                        </>
-                    )}
-                </TouchableOpacity>
+                <View style={styles.footerInner}>
+                    <TouchableOpacity
+                        disabled={processing || !onboardingRequestId}
+                        activeOpacity={0.85}
+                        onPress={startPayment}
+                        style={[
+                            styles.payButton,
+                            processing && styles.payButtonDisabled,
+                        ]}
+                    >
+                        {processing ? (
+                            <ActivityIndicator color="#FFFFFF" />
+                        ) : (
+                            <>
+                                <Ionicons
+                                    name="lock-closed-outline"
+                                    size={18}
+                                    color="#FFFFFF"
+                                />
+                                <Text style={styles.payButtonText}>
+                                    Continue Securely
+                                </Text>
+                            </>
+                        )}
+                    </TouchableOpacity>
+                </View>
             </View>
         </SafeAreaView>
     );
@@ -310,13 +327,17 @@ export default function PaymentScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F8FAFC' },
     header: {
+        borderBottomWidth: 1,
+        borderBottomColor: '#E2E8F0',
+        backgroundColor: '#FFFFFF',
+        width: '100%',
+    },
+    headerInner: {
         minHeight: 72,
         paddingHorizontal: 16,
         flexDirection: 'row',
         alignItems: 'center',
-        borderBottomWidth: 1,
-        borderBottomColor: '#E2E8F0',
-        backgroundColor: '#FFFFFF',
+        ...webConstrained,
     },
     iconButton: {
         width: 40,
@@ -326,14 +347,19 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     headerText: { flex: 1 },
-    title: { fontSize: 20, fontWeight: '900', color: '#0F172A' },
+    title: { fontSize: 20, lineHeight: 24, fontWeight: '900', color: '#0F172A' },
     subtitle: {
         marginTop: 3,
         fontSize: 12,
+        lineHeight: 16,
         fontWeight: '600',
         color: '#64748B',
     },
-    content: { padding: 18, paddingBottom: 120 },
+    content: {
+        padding: 18,
+        paddingBottom: 120,
+        ...webConstrained,
+    },
     secureBox: {
         padding: 14,
         borderRadius: 16,
@@ -353,6 +379,7 @@ const styles = StyleSheet.create({
         marginTop: 24,
         marginBottom: 10,
         fontSize: 11,
+        lineHeight: 14,
         letterSpacing: 0.8,
         fontWeight: '900',
         color: '#64748B',
@@ -361,6 +388,7 @@ const styles = StyleSheet.create({
         minHeight: 74,
         marginBottom: 11,
         paddingHorizontal: 14,
+        paddingVertical: 10,
         borderRadius: 17,
         borderWidth: 1,
         borderColor: '#E2E8F0',
@@ -385,12 +413,14 @@ const styles = StyleSheet.create({
     optionText: { flex: 1 },
     optionTitle: {
         fontSize: 14,
+        lineHeight: 18,
         fontWeight: '900',
         color: '#0F172A',
     },
     optionSubtitle: {
         marginTop: 3,
         fontSize: 11.5,
+        lineHeight: 15,
         fontWeight: '600',
         color: '#64748B',
     },
@@ -415,10 +445,14 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         bottom: 0,
-        padding: 18,
         backgroundColor: '#FFFFFF',
         borderTopWidth: 1,
         borderTopColor: '#E2E8F0',
+        width: '100%',
+    },
+    footerInner: {
+        padding: 18,
+        ...webConstrained,
     },
     payButton: {
         minHeight: 54,
@@ -432,6 +466,7 @@ const styles = StyleSheet.create({
     payButtonText: {
         marginLeft: 9,
         fontSize: 15,
+        lineHeight: 19,
         fontWeight: '900',
         color: '#FFFFFF',
     },

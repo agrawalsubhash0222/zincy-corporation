@@ -43,7 +43,7 @@ export default function EditProfileScreen() {
 
             const profile = await getProfile(session.mobile);
 
-            setFirstName(profile.firstName || profile.name || '');
+            setFirstName(profile.firstName || '');
             setLastName(profile.lastName || '');
             setEmail(profile.email || '');
         } catch (error) {
@@ -102,10 +102,18 @@ export default function EditProfileScreen() {
     if (loading) {
         return (
             <View style={styles.center}>
-                <ActivityIndicator size="large" color="#00B887" />
+                <ActivityIndicator size="large" color="#149BD7" />
             </View>
         );
     }
+
+    const handleBack = () => {
+        if (router.canGoBack()) {
+            router.back();
+        } else {
+            router.replace('/profile' as Href);
+        }
+    };
 
     return (
         <KeyboardAvoidingView
@@ -113,7 +121,11 @@ export default function EditProfileScreen() {
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={handleBack}
+                    style={styles.backBtn}
+                >
                     <Ionicons name="arrow-back" size={24} color="#fff" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Edit Profile</Text>

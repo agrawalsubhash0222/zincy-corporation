@@ -30,6 +30,19 @@ type FormErrors = {
     requirement: string;
 };
 
+// Keeps the page content from stretching edge-to-edge on
+// wide browser windows, matching the boxed/centered layout
+// used elsewhere. Mobile/native is untouched.
+const WEB_CONTENT_MAX_WIDTH = 520;
+const isWeb = Platform.OS === 'web';
+const webConstrained = isWeb
+    ? {
+        width: '100%' as const,
+        maxWidth: WEB_CONTENT_MAX_WIDTH,
+        alignSelf: 'center' as const,
+    }
+    : {};
+
 export default function ProjectRequirementScreen() {
     const { data, updateData } = useOnboarding();
 
@@ -340,10 +353,13 @@ const styles = StyleSheet.create({
     /*
      * This inner wrapper guarantees equal mobile spacing.
      * Do not move this padding to SafeAreaView or ScrollView.
+     * webConstrained additionally keeps it from stretching
+     * edge-to-edge on wide browser windows.
      */
     content: {
         width: '100%',
         paddingHorizontal: 16,
+        ...webConstrained,
     },
 
     header: {

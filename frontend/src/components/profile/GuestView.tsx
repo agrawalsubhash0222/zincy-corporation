@@ -15,47 +15,36 @@ export default function GuestView() {
 
         <View style={styles.guestTopRow}>
           <View style={styles.guestAvatar}>
-            <Ionicons name="person-outline" size={30} color="#064e3b" />
+            <Ionicons name="person-outline" size={30} color="#075985" />
           </View>
 
           <View style={styles.guestTextBox}>
-            <Text style={styles.guestTitle}>Welcome Guest !</Text>
-            <Text style={styles.guestMiniText}>Login for a better shopping experience</Text>
+            <Text style={styles.guestTitle}>Welcome to Zincy</Text>
+            <Text style={styles.guestMiniText}>
+              Sign in to access your account
+            </Text>
           </View>
         </View>
 
         <Text style={styles.guestSubtitle}>
-          To track orders, save addresses, get faster checkout and unlock exclusive deals...
+          Manage your profile, submit enquiries, and stay connected with
+          Zincy Corporation.
         </Text>
 
         <TouchableOpacity
-          activeOpacity={0.9}
+          activeOpacity={0.88}
           style={styles.loginButton}
           onPress={() => router.push('/auth/login')}
         >
           <View style={styles.loginButtonLeft}>
-            <Ionicons name="log-in-outline" size={21} color="#fff" />
+            <Ionicons name="log-in-outline" size={21} color="#FFFFFF" />
             <Text style={styles.loginButtonText}>Log In / Sign Up</Text>
           </View>
 
           <View style={styles.loginArrowCircle}>
-            <Ionicons name="arrow-forward" size={18} color="#16a34a" />
+            <Ionicons name="arrow-forward" size={18} color="#0284C7" />
           </View>
         </TouchableOpacity>
-
-        <View style={styles.guestBenefitsRow}>
-          <View style={styles.guestBenefit}>
-            <Ionicons name="flash-outline" size={15} color="#065f46" />
-            <Text style={styles.guestBenefitText}>Fast Delivery</Text>
-          </View>
-
-          <View style={styles.guestDivider} />
-
-          <View style={styles.guestBenefit}>
-            <Ionicons name="pricetag-outline" size={15} color="#065f46" />
-            <Text style={styles.guestBenefitText}>Best Deals</Text>
-          </View>
-        </View>
       </View>
 
       <ProfileLinks />

@@ -12,15 +12,17 @@ import {
 } from 'react';
 import {
     ActivityIndicator,
-    Alert,
     BackHandler,
-    SafeAreaView,
+    Modal,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
     View,
+    type GestureResponderEvent,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
     getMaintenanceSetup,
@@ -30,9 +32,57 @@ import {
 } from '@/services/maintenanceSetupApi';
 
 const MONTHLY_AMOUNT = 499;
+const GST_RATE = 0.18;
 const YEARLY_AMOUNT = Math.round(
     MONTHLY_AMOUNT * 12 * 0.9
 );
+
+type PriceDetails = {
+    baseAmount: number;
+    gstAmount: number;
+    totalAmount: number;
+};
+
+// Rounded to 2 decimal places so GST reflects the exact 18%
+// instead of being rounded off to the nearest rupee.
+const calculatePrice = (baseAmount: number): PriceDetails => {
+    const gstAmount =
+        Math.round(baseAmount * GST_RATE * 100) / 100;
+
+    const totalAmount =
+        Math.round((baseAmount + gstAmount) * 100) / 100;
+
+    return {
+        baseAmount,
+        gstAmount,
+        totalAmount,
+    };
+};
+
+// Shows decimals only when the amount actually has a
+// fractional part (e.g. ₹0 / ₹499 stay whole numbers,
+// while ₹89.82 keeps its paise).
+const formatCurrency = (amount: number) => {
+    const rounded = Math.round(amount * 100) / 100;
+    const hasDecimal = rounded % 1 !== 0;
+
+    return `₹${rounded.toLocaleString('en-IN', {
+        minimumFractionDigits: hasDecimal ? 2 : 0,
+        maximumFractionDigits: 2,
+    })}`;
+};
+
+// Keeps the layout from stretching edge-to-edge on wide
+// browser windows. Mobile/native is untouched.
+const WEB_CONTENT_MAX_WIDTH = 520;
+const isWeb = Platform.OS === 'web';
+const webConstrained = isWeb
+    ? {
+        width: '100%' as const,
+        maxWidth: WEB_CONTENT_MAX_WIDTH,
+        alignSelf: 'center' as const,
+    }
+    : {};
 
 type RouteParams = {
     onboardingRequestId?: string | string[];
@@ -148,6 +198,30 @@ export default function MaintenanceScreen() {
     const [saving, setSaving] =
         useState(false);
 
+    const [alertState, setAlertState] = useState({
+        visible: false,
+        title: '',
+        message: '',
+    });
+
+    const showAlert = useCallback(
+        (title: string, message: string) => {
+            setAlertState({
+                visible: true,
+                title,
+                message,
+            });
+        },
+        []
+    );
+
+    const closeAlert = useCallback(() => {
+        setAlertState((current) => ({
+            ...current,
+            visible: false,
+        }));
+    }, []);
+
     const selectedAmount = useMemo(() => {
         if (selected !== 'ZINCY_MANAGED') {
             return 0;
@@ -163,6 +237,11 @@ export default function MaintenanceScreen() {
 
         return 0;
     }, [selected, billing]);
+
+    const selectedPrice = useMemo(
+        () => calculatePrice(selectedAmount),
+        [selectedAmount]
+    );
 
     const selectedTitle = useMemo(() => {
         switch (selected) {
@@ -324,13 +403,30 @@ export default function MaintenanceScreen() {
             'NA'
         >
     ) => {
+        if (
+            selected === 'ZINCY_MANAGED'
+            && billing === value
+        ) {
+            setSelected('');
+            setBilling('');
+            return;
+        }
+
         setSelected('ZINCY_MANAGED');
         setBilling(value);
     };
 
+    const handleBillingPress = (
+        event: GestureResponderEvent,
+        value: Exclude<MaintenanceBillingType, 'NA'>
+    ) => {
+        event.stopPropagation();
+        selectBilling(value);
+    };
+
     const handleCheckout = async () => {
         if (!selected) {
-            Alert.alert(
+            showAlert(
                 'Select maintenance option',
                 'Please choose one maintenance option to continue.'
             );
@@ -341,7 +437,7 @@ export default function MaintenanceScreen() {
             selected === 'ZINCY_MANAGED'
             && !billing
         ) {
-            Alert.alert(
+            showAlert(
                 'Select billing plan',
                 'Please choose Monthly or Yearly billing.'
             );
@@ -352,7 +448,7 @@ export default function MaintenanceScreen() {
             !Number.isInteger(onboardingRequestId)
             || onboardingRequestId <= 0
         ) {
-            Alert.alert(
+            showAlert(
                 'Missing request',
                 'Onboarding request ID is missing.'
             );
@@ -414,7 +510,7 @@ export default function MaintenanceScreen() {
                 },
             });
         } catch (error) {
-            Alert.alert(
+            showAlert(
                 'Unable to save',
                 error instanceof Error
                     ? error.message
@@ -429,6 +525,7 @@ export default function MaintenanceScreen() {
         return (
             <SafeAreaView
                 style={styles.container}
+                edges={['top', 'left', 'right', 'bottom']}
             >
                 <View
                     style={styles.loader}
@@ -451,299 +548,374 @@ export default function MaintenanceScreen() {
     return (
         <SafeAreaView
             style={styles.container}
+            edges={['top', 'left', 'right', 'bottom']}
         >
             <View style={styles.header}>
-                <TouchableOpacity
-                    style={styles.backButton}
-                    activeOpacity={0.7}
-                    onPress={
-                        goBackToServerSummary
-                    }
-                >
-                    <Ionicons
-                        name="arrow-back"
-                        size={24}
-                        color="#0F172A"
-                    />
-                </TouchableOpacity>
+                <View style={styles.headerInner}>
+                    <TouchableOpacity
+                        style={styles.backButton}
+                        activeOpacity={0.7}
+                        onPress={
+                            goBackToServerSummary
+                        }
+                    >
+                        <Ionicons
+                            name="arrow-back"
+                            size={24}
+                            color="#0F172A"
+                        />
+                    </TouchableOpacity>
 
-                <View style={styles.headerText}>
-                    <Text style={styles.title}>
-                        Maintenance
-                    </Text>
+                    <View style={styles.headerText}>
+                        <Text style={styles.title}>
+                            Maintenance
+                        </Text>
 
-                    <Text style={styles.subtitle}>
-                        Choose project support after delivery.
-                    </Text>
+                        <Text style={styles.subtitle}>
+                            Choose project support after delivery.
+                        </Text>
+                    </View>
                 </View>
-            </View>
 
-            <View style={styles.notice}>
-                <Ionicons
-                    name="information-circle-outline"
-                    size={18}
-                    color="#B45309"
-                />
+                <View style={styles.noticeInner}>
+                    <View style={styles.notice}>
+                        <Ionicons
+                            name="information-circle-outline"
+                            size={18}
+                            color="#B45309"
+                        />
 
-                <Text style={styles.noticeText}>
-                    Scope and SLA will be confirmed before the final agreement.
-                </Text>
+                        <Text style={styles.noticeText}>
+                            Pricing includes 18% GST. Scope and SLA will be confirmed before the final agreement.
+                        </Text>
+                    </View>
+                </View>
             </View>
 
             <ScrollView
                 contentContainerStyle={
-                    styles.content
+                    styles.scrollOuter
                 }
                 showsVerticalScrollIndicator={
                     false
                 }
             >
-                <TouchableOpacity
-                    activeOpacity={0.88}
-                    style={[
-                        styles.card,
-                        selected ===
-                        'ZINCY_MANAGED'
-                        && styles.activeCard,
-                    ]}
-                    onPress={() =>
-                        selectMaintenance(
-                            'ZINCY_MANAGED'
-                        )
-                    }
-                >
-                    <OptionHeader
-                        title="Zincy Managed Maintenance"
-                        tag="Recommended"
-                        selected={
+                <View style={styles.content}>
+                    <TouchableOpacity
+                        activeOpacity={0.88}
+                        style={[
+                            styles.card,
                             selected ===
                             'ZINCY_MANAGED'
+                            && styles.activeCard,
+                        ]}
+                        onPress={() =>
+                            selectMaintenance(
+                                'ZINCY_MANAGED'
+                            )
                         }
-                    />
-
-                    <Text
-                        style={styles.description}
                     >
-                        Updates, bug fixes, monitoring and deployment support.
-                    </Text>
-
-                    <View style={styles.planRow}>
-                        <PlanCard
-                            title="Monthly"
-                            amount={MONTHLY_AMOUNT}
-                            subtitle="per month"
+                        <OptionHeader
+                            title="Zincy Managed Maintenance"
+                            tag="Recommended"
                             selected={
                                 selected ===
                                 'ZINCY_MANAGED'
-                                && billing ===
-                                'MONTHLY'
                             }
-                            onPress={() =>
-                                selectBilling(
+                        />
+
+                        <Text
+                            style={styles.description}
+                        >
+                            Monitoring and deployment support are included. Application support can be discussed separately based on your requirements.
+                        </Text>
+
+                        <View style={styles.planRow}>
+                            <PlanCard
+                                title="Monthly"
+                                period="M"
+                                {...calculatePrice(MONTHLY_AMOUNT)}
+                                selected={
+                                    selected ===
+                                    'ZINCY_MANAGED'
+                                    && billing ===
                                     'MONTHLY'
-                                )
-                            }
-                        />
+                                }
+                                onPress={(event) =>
+                                    handleBillingPress(
+                                        event,
+                                        'MONTHLY'
+                                    )
+                                }
+                            />
 
-                        <PlanCard
-                            title="Yearly"
-                            amount={YEARLY_AMOUNT}
-                            oldAmount={
-                                MONTHLY_AMOUNT * 12
-                            }
-                            subtitle="10% Off"
+                            <PlanCard
+                                title="Yearly"
+                                period="Y"
+                                {...calculatePrice(YEARLY_AMOUNT)}
+                                oldAmount={
+                                    MONTHLY_AMOUNT * 12
+                                }
+                                discountText="10% Off"
+                                selected={
+                                    selected ===
+                                    'ZINCY_MANAGED'
+                                    && billing ===
+                                    'YEARLY'
+                                }
+                                onPress={(event) =>
+                                    handleBillingPress(
+                                        event,
+                                        'YEARLY'
+                                    )
+                                }
+                            />
+                        </View>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        activeOpacity={0.88}
+                        style={[
+                            styles.card,
+                            selected ===
+                            'CLIENT_MANAGED'
+                            && styles.activeCard,
+                        ]}
+                        onPress={() =>
+                            selectMaintenance(
+                                'CLIENT_MANAGED'
+                            )
+                        }
+                    >
+                        <OptionHeader
+                            title="Client Managed Maintenance"
+                            tag="Self Managed"
                             selected={
                                 selected ===
-                                'ZINCY_MANAGED'
-                                && billing ===
-                                'YEARLY'
-                            }
-                            onPress={() =>
-                                selectBilling(
-                                    'YEARLY'
-                                )
+                                'CLIENT_MANAGED'
                             }
                         />
-                    </View>
-                </TouchableOpacity>
 
-                <TouchableOpacity
-                    activeOpacity={0.88}
-                    style={[
-                        styles.card,
-                        selected ===
-                        'CLIENT_MANAGED'
-                        && styles.activeCard,
-                    ]}
-                    onPress={() =>
-                        selectMaintenance(
-                            'CLIENT_MANAGED'
-                        )
-                    }
-                >
-                    <OptionHeader
-                        title="Client Managed Maintenance"
-                        tag="Self Managed"
-                        selected={
-                            selected ===
-                            'CLIENT_MANAGED'
-                        }
-                    />
+                        <Text
+                            style={styles.description}
+                        >
+                            Your internal team will maintain the project after handover.
+                        </Text>
 
-                    <Text
-                        style={styles.description}
-                    >
-                        Your internal team will maintain the project after handover.
-                    </Text>
+                        <FreeAmountBox
+                            label="Maintenance Charge"
+                        />
+                    </TouchableOpacity>
 
-                    <FreeAmountBox
-                        label="Maintenance Charge"
-                    />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    activeOpacity={0.88}
-                    style={[
-                        styles.card,
-                        selected ===
-                        'DECIDE_LATER'
-                        && styles.activeCard,
-                    ]}
-                    onPress={() =>
-                        selectMaintenance(
-                            'DECIDE_LATER'
-                        )
-                    }
-                >
-                    <OptionHeader
-                        title="Decide Later"
-                        tag="Optional"
-                        selected={
+                    <TouchableOpacity
+                        activeOpacity={0.88}
+                        style={[
+                            styles.card,
                             selected ===
                             'DECIDE_LATER'
+                            && styles.activeCard,
+                        ]}
+                        onPress={() =>
+                            selectMaintenance(
+                                'DECIDE_LATER'
+                            )
                         }
-                    />
-
-                    <Text
-                        style={styles.description}
                     >
-                        Decide your maintenance preference during the final discussion.
-                    </Text>
+                        <OptionHeader
+                            title="Decide Later"
+                            tag="Optional"
+                            selected={
+                                selected ===
+                                'DECIDE_LATER'
+                            }
+                        />
 
-                    <FreeAmountBox
-                        label="Current Charge"
-                    />
-                </TouchableOpacity>
+                        <Text
+                            style={styles.description}
+                        >
+                            Decide your maintenance preference during the final discussion.
+                        </Text>
+
+                        <FreeAmountBox
+                            label="Current Charge"
+                        />
+                    </TouchableOpacity>
+                </View>
             </ScrollView>
 
             <View style={styles.footer}>
-                {selected ? (
-                    <View style={styles.footerRow}>
-                        <View
-                            style={styles.selectionBox}
-                        >
-                            <Text
-                                style={
-                                    styles.selectionTitle
-                                }
-                                numberOfLines={1}
-                            >
-                                {selectedTitle}
-                            </Text>
-
+                <View style={styles.footerInner}>
+                    {selected ? (
+                        <View style={styles.footerRow}>
                             <View
-                                style={styles.selectionMeta}
+                                style={styles.selectionBox}
                             >
                                 <Text
-                                    style={[
-                                        styles.selectionPlan,
-                                        selected ===
-                                        'ZINCY_MANAGED'
-                                        && !billing
-                                        && styles.billingRequired,
-                                    ]}
+                                    style={
+                                        styles.selectionTitle
+                                    }
+                                    numberOfLines={1}
                                 >
-                                    {selectedPlanText}
+                                    {selectedTitle}
                                 </Text>
 
-                                <Text
-                                    style={styles.selectionAmount}
+                                <View
+                                    style={styles.selectionMeta}
                                 >
-                                    ₹
-                                    {selectedAmount.toLocaleString(
-                                        'en-IN'
-                                    )}
-                                </Text>
+                                    <Text
+                                        style={[
+                                            styles.selectionPlan,
+                                            selected ===
+                                            'ZINCY_MANAGED'
+                                            && !billing
+                                            && styles.billingRequired,
+                                        ]}
+                                        numberOfLines={1}
+                                    >
+                                        {selectedPlanText}
+                                    </Text>
+
+                                    <View style={styles.selectionPriceBox}>
+                                        <Text style={styles.selectionAmount}>
+                                            {formatCurrency(selectedPrice.totalAmount)}
+                                        </Text>
+
+                                        {selected === 'ZINCY_MANAGED' && billing ? (
+                                            <Text style={styles.selectionGst}>
+                                                Includes {formatCurrency(selectedPrice.gstAmount)} GST
+                                            </Text>
+                                        ) : null}
+                                    </View>
+                                </View>
                             </View>
-                        </View>
 
-                        <TouchableOpacity
-                            style={[
-                                styles.checkoutButton,
-                                (
+                            <TouchableOpacity
+                                style={[
+                                    styles.checkoutButton,
+                                    (
+                                        saving
+                                        || (
+                                            selected ===
+                                            'ZINCY_MANAGED'
+                                            && !billing
+                                        )
+                                    )
+                                    && styles.disabledButton,
+                                ]}
+                                disabled={
                                     saving
                                     || (
                                         selected ===
                                         'ZINCY_MANAGED'
                                         && !billing
                                     )
-                                )
-                                && styles.disabledButton,
-                            ]}
-                            disabled={
-                                saving
-                                || (
-                                    selected ===
-                                    'ZINCY_MANAGED'
-                                    && !billing
-                                )
-                            }
+                                }
+                                activeOpacity={0.85}
+                                onPress={handleCheckout}
+                            >
+                                {saving ? (
+                                    <ActivityIndicator
+                                        size="small"
+                                        color="#FFFFFF"
+                                    />
+                                ) : (
+                                    <>
+                                        <Text
+                                            style={
+                                                styles.buttonText
+                                            }
+                                        >
+                                            Checkout
+                                        </Text>
+
+                                        <Ionicons
+                                            name="arrow-forward"
+                                            size={18}
+                                            color="#FFFFFF"
+                                        />
+                                    </>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    ) : (
+                        <TouchableOpacity
+                            style={styles.selectButton}
                             activeOpacity={0.85}
                             onPress={handleCheckout}
                         >
-                            {saving ? (
-                                <ActivityIndicator
-                                    size="small"
-                                    color="#FFFFFF"
-                                />
-                            ) : (
-                                <>
-                                    <Text
-                                        style={
-                                            styles.buttonText
-                                        }
-                                    >
-                                        Checkout
-                                    </Text>
+                            <Text style={styles.buttonText}>
+                                Select Option
+                            </Text>
 
-                                    <Ionicons
-                                        name="arrow-forward"
-                                        size={18}
-                                        color="#FFFFFF"
-                                    />
-                                </>
-                            )}
+                            <Ionicons
+                                name="arrow-forward"
+                                size={18}
+                                color="#FFFFFF"
+                            />
                         </TouchableOpacity>
-                    </View>
-                ) : (
-                    <TouchableOpacity
-                        style={styles.selectButton}
-                        activeOpacity={0.85}
-                        onPress={handleCheckout}
-                    >
-                        <Text style={styles.buttonText}>
-                            Select Option
-                        </Text>
-
-                        <Ionicons
-                            name="arrow-forward"
-                            size={18}
-                            color="#FFFFFF"
-                        />
-                    </TouchableOpacity>
-                )}
+                    )}
+                </View>
             </View>
+
+            <CommonAlert
+                visible={alertState.visible}
+                title={alertState.title}
+                message={alertState.message}
+                onClose={closeAlert}
+            />
         </SafeAreaView>
+    );
+}
+
+function CommonAlert({
+    visible,
+    title,
+    message,
+    onClose,
+}: {
+    visible: boolean;
+    title: string;
+    message: string;
+    onClose: () => void;
+}) {
+    return (
+        <Modal
+            visible={visible}
+            transparent
+            animationType="fade"
+            statusBarTranslucent
+            onRequestClose={onClose}
+        >
+            <View style={styles.alertOverlay}>
+                <View style={styles.alertCard}>
+                    <View style={styles.alertIconBox}>
+                        <Ionicons
+                            name="information-circle-outline"
+                            size={25}
+                            color="#0284C7"
+                        />
+                    </View>
+
+                    <Text style={styles.alertTitle}>
+                        {title}
+                    </Text>
+
+                    <Text style={styles.alertMessage}>
+                        {message}
+                    </Text>
+
+                    <TouchableOpacity
+                        style={styles.alertButton}
+                        activeOpacity={0.85}
+                        onPress={onClose}
+                    >
+                        <Text style={styles.alertButtonText}>
+                            OK
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </Modal>
     );
 }
 
@@ -787,18 +959,24 @@ function OptionHeader({
 
 function PlanCard({
     title,
-    amount,
-    subtitle,
+    period,
+    baseAmount,
+    gstAmount,
+    totalAmount,
     selected,
     onPress,
     oldAmount,
+    discountText,
 }: {
     title: string;
-    amount: number;
-    subtitle: string;
+    period: 'M' | 'Y';
+    baseAmount: number;
+    gstAmount: number;
+    totalAmount: number;
     selected: boolean;
-    onPress: () => void;
+    onPress: (event: GestureResponderEvent) => void;
     oldAmount?: number;
+    discountText?: string;
 }) {
     return (
         <TouchableOpacity
@@ -830,31 +1008,43 @@ function PlanCard({
                 />
             </View>
 
-            {oldAmount !== undefined && (
-                <Text style={styles.oldAmount}>
-                    ₹
-                    {oldAmount.toLocaleString(
-                        'en-IN'
-                    )}
+            <View style={styles.priceLine}>
+                {oldAmount !== undefined && (
+                    <Text style={styles.oldAmount}>
+                        {formatCurrency(oldAmount)}
+                    </Text>
+                )}
+
+                <Text style={styles.planAmount}>
+                    {formatCurrency(baseAmount)}/{period}
                 </Text>
+            </View>
+
+            {!!discountText && (
+                <View style={styles.discountBadge}>
+                    <Text style={styles.discountBadgeText}>
+                        {discountText}
+                    </Text>
+                </View>
             )}
 
-            <Text style={styles.planAmount}>
-                ₹
-                {amount.toLocaleString(
-                    'en-IN'
-                )}
-            </Text>
+            <View style={styles.taxDivider} />
 
-            <Text
-                style={[
-                    styles.planSubtitle,
-                    oldAmount !== undefined
-                    && styles.discountText,
-                ]}
-            >
-                {subtitle}
-            </Text>
+            <View style={styles.taxRow}>
+                <Text style={styles.taxLabel}>18% GST</Text>
+
+                <Text style={styles.taxValue}>
+                    + {formatCurrency(gstAmount)}
+                </Text>
+            </View>
+
+            <View style={styles.totalRow}>
+                <Text style={styles.totalLabel}>Total</Text>
+
+                <Text style={styles.totalValue}>
+                    {formatCurrency(totalAmount)}
+                </Text>
+            </View>
         </TouchableOpacity>
     );
 }
@@ -893,18 +1083,24 @@ const styles = StyleSheet.create({
         marginTop: 12,
         color: '#64748B',
         fontSize: 13,
+        lineHeight: 18,
         fontWeight: '700',
     },
 
     header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingTop: 44,
-        paddingBottom: 14,
         borderBottomWidth: 1,
         borderBottomColor: '#E2E8F0',
         backgroundColor: '#FFFFFF',
+        width: '100%',
+    },
+
+    headerInner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingTop: 14,
+        paddingBottom: 14,
+        ...webConstrained,
     },
 
     backButton: {
@@ -922,6 +1118,7 @@ const styles = StyleSheet.create({
 
     title: {
         fontSize: 24,
+        lineHeight: 29,
         fontWeight: '900',
         color: '#0F172A',
     },
@@ -930,12 +1127,17 @@ const styles = StyleSheet.create({
         marginTop: 3,
         color: '#64748B',
         fontSize: 13,
+        lineHeight: 18,
         fontWeight: '600',
     },
 
+    noticeInner: {
+        paddingHorizontal: 20,
+        paddingBottom: 14,
+        ...webConstrained,
+    },
+
     notice: {
-        marginHorizontal: 20,
-        marginTop: 14,
         paddingHorizontal: 12,
         paddingVertical: 10,
         borderRadius: 14,
@@ -955,10 +1157,15 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
 
+    scrollOuter: {
+        flexGrow: 1,
+        paddingTop: 16,
+        paddingBottom: 24,
+    },
+
     content: {
         paddingHorizontal: 20,
-        paddingTop: 16,
-        paddingBottom: 125,
+        ...webConstrained,
     },
 
     card: {
@@ -989,6 +1196,7 @@ const styles = StyleSheet.create({
     optionTitle: {
         color: '#0F172A',
         fontSize: 16,
+        lineHeight: 20,
         fontWeight: '900',
     },
 
@@ -996,6 +1204,7 @@ const styles = StyleSheet.create({
         marginTop: 3,
         color: '#0284C7',
         fontSize: 11,
+        lineHeight: 14,
         fontWeight: '900',
     },
 
@@ -1015,7 +1224,7 @@ const styles = StyleSheet.create({
 
     planCard: {
         flex: 1,
-        minHeight: 116,
+        minHeight: 158,
         padding: 12,
         borderRadius: 14,
         borderWidth: 1,
@@ -1037,39 +1246,103 @@ const styles = StyleSheet.create({
     planTitle: {
         color: '#64748B',
         fontSize: 11,
+        lineHeight: 14,
         fontWeight: '900',
     },
 
+    priceLine: {
+        marginTop: 9,
+        minHeight: 22,
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: 4,
+    },
+
     oldAmount: {
-        marginTop: 8,
         color: '#94A3B8',
-        fontSize: 10.5,
+        fontSize: 9.5,
+        lineHeight: 12,
         fontWeight: '800',
         textDecorationLine: 'line-through',
     },
 
     planAmount: {
-        marginTop: 7,
         color: '#0F172A',
-        fontSize: 18,
+        fontSize: 15,
+        lineHeight: 19,
         fontWeight: '900',
     },
 
-    planSubtitle: {
-        marginTop: 4,
-        color: '#94A3B8',
-        fontSize: 10.5,
-        fontWeight: '700',
+    discountBadge: {
+        marginTop: 5,
+        alignSelf: 'flex-start',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 99,
+        backgroundColor: '#DCFCE7',
     },
 
-    discountText: {
+    discountBadgeText: {
+        fontSize: 9.5,
+        lineHeight: 12,
+        fontWeight: '900',
         color: '#15803D',
     },
 
+    taxDivider: {
+        marginTop: 9,
+        marginBottom: 7,
+        height: 1,
+        backgroundColor: '#E2E8F0',
+    },
+
+    taxRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+
+    taxLabel: {
+        color: '#64748B',
+        fontSize: 9.5,
+        lineHeight: 12,
+        fontWeight: '600',
+    },
+
+    taxValue: {
+        color: '#64748B',
+        fontSize: 9.5,
+        lineHeight: 12,
+        fontWeight: '700',
+    },
+
+    totalRow: {
+        marginTop: 5,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+
+    totalLabel: {
+        color: '#334155',
+        fontSize: 10,
+        lineHeight: 13,
+        fontWeight: '900',
+    },
+
+    totalValue: {
+        color: '#0F172A',
+        fontSize: 11.5,
+        lineHeight: 14,
+        fontWeight: '900',
+    },
+
     freeBox: {
-        height: 54,
+        minHeight: 54,
         marginTop: 14,
         paddingHorizontal: 13,
+        paddingVertical: 8,
         borderRadius: 14,
         borderWidth: 1,
         borderColor: '#E2E8F0',
@@ -1082,22 +1355,29 @@ const styles = StyleSheet.create({
     freeLabel: {
         color: '#64748B',
         fontSize: 12,
+        lineHeight: 16,
         fontWeight: '800',
     },
 
     freeAmount: {
         color: '#0F172A',
         fontSize: 18,
+        lineHeight: 22,
         fontWeight: '900',
     },
 
     footer: {
-        paddingHorizontal: 20,
-        paddingTop: 12,
-        paddingBottom: 36,
         borderTopWidth: 1,
         borderTopColor: '#E2E8F0',
         backgroundColor: '#FFFFFF',
+        width: '100%',
+    },
+
+    footerInner: {
+        paddingHorizontal: 20,
+        paddingTop: 12,
+        paddingBottom: 14,
+        ...webConstrained,
     },
 
     footerRow: {
@@ -1106,10 +1386,15 @@ const styles = StyleSheet.create({
         gap: 10,
     },
 
+    // Changed from a fixed height to minHeight so the box
+    // grows to fit its content (title + plan row + amount +
+    // GST caption) instead of clipping/overlapping text when
+    // the GST line is shown.
     selectionBox: {
         flex: 1,
-        height: 58,
+        minHeight: 54,
         paddingHorizontal: 13,
+        paddingVertical: 6,
         borderRadius: 16,
         borderWidth: 1,
         borderColor: '#E2E8F0',
@@ -1120,6 +1405,7 @@ const styles = StyleSheet.create({
     selectionTitle: {
         color: '#0F172A',
         fontSize: 12.5,
+        lineHeight: 16,
         fontWeight: '900',
     },
 
@@ -1131,8 +1417,11 @@ const styles = StyleSheet.create({
     },
 
     selectionPlan: {
+        flex: 1,
+        marginRight: 6,
         color: '#16A34A',
         fontSize: 10.5,
+        lineHeight: 13,
         fontWeight: '900',
     },
 
@@ -1140,15 +1429,31 @@ const styles = StyleSheet.create({
         color: '#D97706',
     },
 
+    selectionPriceBox: {
+        alignItems: 'flex-end',
+    },
+
     selectionAmount: {
         color: '#0F172A',
-        fontSize: 16,
+        fontSize: 14,
+        lineHeight: 17,
         fontWeight: '900',
     },
 
+    selectionGst: {
+        marginTop: 1,
+        color: '#64748B',
+        fontSize: 7.5,
+        lineHeight: 9,
+        fontWeight: '600',
+        textAlign: 'right',
+    },
+
+    // Fixed, modest widths instead of a wide '60%'/percentage
+    // spread — keeps the CTA from ballooning on large screens.
     checkoutButton: {
-        width: 132,
-        height: 58,
+        width: 120,
+        height: 54,
         borderRadius: 16,
         backgroundColor: '#0EA5E9',
         flexDirection: 'row',
@@ -1157,7 +1462,8 @@ const styles = StyleSheet.create({
     },
 
     selectButton: {
-        width: '60%',
+        width: 200,
+        maxWidth: '70%',
         height: 50,
         alignSelf: 'center',
         borderRadius: 16,
@@ -1175,6 +1481,73 @@ const styles = StyleSheet.create({
         marginRight: 8,
         color: '#FFFFFF',
         fontSize: 15,
+        lineHeight: 18,
+        fontWeight: '900',
+    },
+
+    alertOverlay: {
+        flex: 1,
+        paddingHorizontal: 24,
+        backgroundColor: 'rgba(15, 23, 42, 0.55)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+
+    alertCard: {
+        width: '100%',
+        maxWidth: 360,
+        paddingHorizontal: 20,
+        paddingTop: 20,
+        paddingBottom: 16,
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        backgroundColor: '#FFFFFF',
+        alignItems: 'center',
+        elevation: 8,
+    },
+
+    alertIconBox: {
+        width: 44,
+        height: 44,
+        marginBottom: 11,
+        borderRadius: 22,
+        backgroundColor: '#E0F2FE',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+
+    alertTitle: {
+        color: '#0F172A',
+        fontSize: 17,
+        lineHeight: 22,
+        fontWeight: '900',
+        textAlign: 'center',
+    },
+
+    alertMessage: {
+        marginTop: 7,
+        color: '#64748B',
+        fontSize: 12.5,
+        lineHeight: 18,
+        fontWeight: '600',
+        textAlign: 'center',
+    },
+
+    alertButton: {
+        width: '100%',
+        height: 44,
+        marginTop: 17,
+        borderRadius: 13,
+        backgroundColor: '#0EA5E9',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+
+    alertButtonText: {
+        color: '#FFFFFF',
+        fontSize: 14,
+        lineHeight: 18,
         fontWeight: '900',
     },
 });

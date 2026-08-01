@@ -28,7 +28,7 @@ export default function OtpForm() {
             <Text style={styles.mobileText}>+91 {mobile}</Text>
 
             <View style={styles.inputBox}>
-                <Ionicons name="lock-closed-outline" size={20} color="#64748B" />
+                <Ionicons name="lock-closed-outline" size={20} color="#149BD7" />
 
                 <TextInput
                     placeholder="Enter OTP"

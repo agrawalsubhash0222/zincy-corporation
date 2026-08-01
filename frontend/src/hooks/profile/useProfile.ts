@@ -6,12 +6,12 @@ import { getSession, removeSession, updateSessionUser } from '@/utils/session';
 
 export type ProfileUser = {
   id?: number;
-  name?: string;
   firstName?: string;
   lastName?: string;
   mobile?: string;
   email?: string;
   role?: string;
+  profileImageUrl?: string;
 };
 
 export function useProfile() {

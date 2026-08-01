@@ -19,6 +19,20 @@ import {
     View,
 } from 'react-native';
 
+// Keeps the form fields from stretching edge-to-edge on wide
+// browser windows. Mobile/native is untouched — the continue
+// button below already self-limits via maxWidth: 420, this just
+// brings the fields above it in line with that same ceiling.
+const WEB_CONTENT_MAX_WIDTH = 520;
+const isWeb = Platform.OS === 'web';
+const webConstrained = isWeb
+    ? {
+        width: '100%' as const,
+        maxWidth: WEB_CONTENT_MAX_WIDTH,
+        alignSelf: 'center' as const,
+    }
+    : {};
+
 type FormErrors = {
     businessName: string;
     ownerName: string;
@@ -114,7 +128,7 @@ export default function BusinessDetailsScreen() {
 
         if (!finalMobile) {
             newErrors.mobile =
-                'Please enter mobile number.';
+                'Please enter owner mobile number.';
         } else if (!isValidIndianMobile(finalMobile)) {
             newErrors.mobile =
                 'Please enter a valid 10-digit Indian mobile number.';
@@ -122,7 +136,7 @@ export default function BusinessDetailsScreen() {
 
         if (!finalEmail) {
             newErrors.email =
-                'Please enter email address.';
+                'Please enter owner email address.';
         } else if (!isValidEmail(finalEmail)) {
             newErrors.email =
                 'Please enter a valid email address.';
@@ -222,7 +236,7 @@ export default function BusinessDetailsScreen() {
                             label="Business Name"
                             icon="business-outline"
                             value={businessName}
-                            placeholder="ABC Hardware Store"
+                            placeholder="Business Name"
                             error={errors.businessName}
                             autoCapitalize="words"
                             returnKeyType="next"
@@ -240,7 +254,7 @@ export default function BusinessDetailsScreen() {
                             label="Owner Name"
                             icon="person-outline"
                             value={ownerName}
-                            placeholder="Rahul Kumar"
+                            placeholder="Owner Name"
                             error={errors.ownerName}
                             autoCapitalize="words"
                             returnKeyType="next"
@@ -255,10 +269,10 @@ export default function BusinessDetailsScreen() {
 
                         <InputField
                             inputRef={mobileRef}
-                            label="Mobile Number"
+                            label="Owner Mobile Number"
                             icon="call-outline"
                             value={mobile}
-                            placeholder="9876543210"
+                            placeholder="Owner Mobile Number"
                             error={errors.mobile}
                             keyboardType="phone-pad"
                             maxLength={10}
@@ -278,10 +292,10 @@ export default function BusinessDetailsScreen() {
 
                         <InputField
                             inputRef={emailRef}
-                            label="Email Address"
+                            label="Owner Email Address"
                             icon="mail-outline"
                             value={email}
-                            placeholder="owner@email.com"
+                            placeholder="Owner Email Address"
                             error={errors.email}
                             keyboardType="email-address"
                             autoCapitalize="none"
@@ -413,8 +427,8 @@ const pageStyles = StyleSheet.create({
     },
 
     formContent: {
-        width: 'auto',
         marginHorizontal: 16,
+        ...webConstrained,
     },
 
     header: {
@@ -445,6 +459,7 @@ const pageStyles = StyleSheet.create({
         flexShrink: 1,
         color: '#0F172A',
         fontSize: 23,
+        lineHeight: 28,
         fontWeight: '900',
     },
 
@@ -452,6 +467,7 @@ const pageStyles = StyleSheet.create({
         marginLeft: 8,
         color: '#0EA5E9',
         fontSize: 13,
+        lineHeight: 16,
         fontWeight: '800',
     },
 
@@ -476,6 +492,7 @@ const pageStyles = StyleSheet.create({
     label: {
         color: '#334155',
         fontSize: 14,
+        lineHeight: 18,
         fontWeight: '700',
     },
 
@@ -483,6 +500,7 @@ const pageStyles = StyleSheet.create({
         marginLeft: 3,
         color: '#EF4444',
         fontSize: 15,
+        lineHeight: 18,
         fontWeight: '800',
     },
 
@@ -538,6 +556,7 @@ const pageStyles = StyleSheet.create({
         marginTop: 4,
         color: '#EF4444',
         fontSize: 12,
+        lineHeight: 15,
         fontWeight: '600',
     },
 
@@ -564,6 +583,7 @@ const pageStyles = StyleSheet.create({
         marginRight: 9,
         color: '#FFFFFF',
         fontSize: 16,
+        lineHeight: 20,
         fontWeight: '800',
     },
 });

@@ -26,7 +26,7 @@ export const styles = StyleSheet.create({
         width: 64,
         height: 64,
         borderRadius: 32,
-        backgroundColor: '#DCFCE7',
+        backgroundColor: '#bbe6f9',
         alignItems: 'center',
         justifyContent: 'center',
         alignSelf: 'center',
@@ -81,13 +81,13 @@ export const styles = StyleSheet.create({
     btn: {
         height: 56,
         borderRadius: 18,
-        backgroundColor: '#16A34A',
+        backgroundColor: '#149BD7',
         alignItems: 'center',
         justifyContent: 'center',
         flexDirection: 'row',
         gap: 8,
         marginTop: 4,
-        shadowColor: '#16A34A',
+        shadowColor: '#149BD7',
         shadowOpacity: 0.25,
         shadowRadius: 12,
         shadowOffset: { width: 0, height: 8 },
@@ -116,7 +116,7 @@ export const styles = StyleSheet.create({
     },
 
     link: {
-        color: '#16A34A',
+        color: '#149BD7',
         fontWeight: '900',
     },
 });
