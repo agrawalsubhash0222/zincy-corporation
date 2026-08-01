@@ -19,15 +19,13 @@ import {
     View,
 } from 'react-native';
 
-// Keeps the form fields from stretching edge-to-edge on wide
-// browser windows. Mobile/native is untouched — the continue
-// button below already self-limits via maxWidth: 420, this just
-// brings the fields above it in line with that same ceiling.
-const WEB_CONTENT_MAX_WIDTH = 520;
+// On web, keep the complete form aligned with the Continue button.
+// Native keeps its existing 16px side margins.
+const WEB_CONTENT_MAX_WIDTH = 420;
 const isWeb = Platform.OS === 'web';
 const webConstrained = isWeb
     ? {
-        width: '100%' as const,
+        width: '88%' as const,
         maxWidth: WEB_CONTENT_MAX_WIDTH,
         alignSelf: 'center' as const,
     }
@@ -427,7 +425,7 @@ const pageStyles = StyleSheet.create({
     },
 
     formContent: {
-        marginHorizontal: 16,
+        marginHorizontal: isWeb ? 0 : 16,
         ...webConstrained,
     },
 

@@ -17,11 +17,12 @@ import {
 
 import {
     ActivityIndicator,
-    Alert,
     FlatList,
-    Platform,
+    Modal,
+    Pressable,
     RefreshControl,
     SafeAreaView,
+    StyleSheet,
     Text,
     TouchableOpacity,
     View,
@@ -30,6 +31,34 @@ import {
 import axios from 'axios';
 
 const PAGE_SIZE = 10;
+
+type AdminAlertKind =
+    | 'info'
+    | 'success'
+    | 'error'
+    | 'confirm';
+
+type AdminAlertConfig = {
+    kind: AdminAlertKind;
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    destructive?: boolean;
+    onConfirm?: () => void | Promise<void>;
+};
+
+type AdminAlertState = AdminAlertConfig & {
+    visible: boolean;
+};
+
+const INITIAL_ADMIN_ALERT: AdminAlertState = {
+    visible: false,
+    kind: 'info',
+    title: '',
+    message: '',
+    confirmText: 'OK',
+};
 
 const STATUS_LABEL: Record<OnboardingStatus, string> = {
     SUBMITTED: 'Submitted',
@@ -111,6 +140,37 @@ function getErrorMessage(
 }
 
 export default function AdminOnboardingRequestsScreen() {
+    const [adminAlert, setAdminAlert] =
+        useState<AdminAlertState>(INITIAL_ADMIN_ALERT);
+
+    const showAdminAlert = useCallback(
+        (config: AdminAlertConfig) => {
+            setAdminAlert({
+                visible: true,
+                ...config,
+            });
+        },
+        []
+    );
+
+    const closeAdminAlert = useCallback(() => {
+        setAdminAlert((currentAlert) => ({
+            ...currentAlert,
+            visible: false,
+            onConfirm: undefined,
+        }));
+    }, []);
+
+    const confirmAdminAlert = useCallback(async () => {
+        const onConfirm = adminAlert.onConfirm;
+
+        closeAdminAlert();
+
+        if (onConfirm) {
+            await onConfirm();
+        }
+    }, [adminAlert.onConfirm, closeAdminAlert]);
+
     const [requests, setRequests] = useState<
         OnboardingRequest[]
     >([]);
@@ -162,19 +222,21 @@ export default function AdminOnboardingRequestsScreen() {
                     error
                 );
 
-                Alert.alert(
-                    'Unable to load requests',
-                    getErrorMessage(
+                showAdminAlert({
+                    kind: 'error',
+                    title: 'Unable to load requests',
+                    message: getErrorMessage(
                         error,
                         'Unable to load onboarding requests. Please try again.'
-                    )
-                );
+                    ),
+                    confirmText: 'OK',
+                });
             } finally {
                 setLoading(false);
                 setRefreshing(false);
             }
         },
-        []
+        [showAdminAlert]
     );
 
     const canChangeStatus = (
@@ -208,10 +270,12 @@ export default function AdminOnboardingRequestsScreen() {
         const currentStatus = normalizeStatus(item.status);
 
         if (!canChangeStatus(currentStatus, nextStatus)) {
-            Alert.alert(
-                'Status change not allowed',
-                `Status cannot be changed from ${STATUS_LABEL[currentStatus]} to ${STATUS_LABEL[nextStatus]}.`
-            );
+            showAdminAlert({
+                kind: 'error',
+                title: 'Status change not allowed',
+                message: `Status cannot be changed from ${STATUS_LABEL[currentStatus]} to ${STATUS_LABEL[nextStatus]}.`,
+                confirmText: 'OK',
+            });
 
             return;
         }
@@ -231,24 +295,21 @@ export default function AdminOnboardingRequestsScreen() {
                     );
 
                 updateRequestInList(updatedRequest);
-
-                Alert.alert(
-                    'Status updated',
-                    `Request moved to ${STATUS_LABEL[nextStatus]}.`
-                );
             } catch (error) {
                 console.log(
                     'Update onboarding status error:',
                     error
                 );
 
-                Alert.alert(
-                    'Unable to update',
-                    getErrorMessage(
+                showAdminAlert({
+                    kind: 'error',
+                    title: 'Unable to update',
+                    message: getErrorMessage(
                         error,
                         'Unable to update status. Please try again.'
-                    )
-                );
+                    ),
+                    confirmText: 'OK',
+                });
 
                 await loadRequests(false);
             } finally {
@@ -256,30 +317,15 @@ export default function AdminOnboardingRequestsScreen() {
             }
         };
 
-        if (Platform.OS === 'web') {
-            const confirmed = window.confirm(message);
-
-            if (confirmed) {
-                await updateStatus();
-            }
-
-            return;
-        }
-
-        Alert.alert(
-            'Update Status',
+        showAdminAlert({
+            kind: 'confirm',
+            title: 'Update status',
             message,
-            [
-                {
-                    text: 'Cancel',
-                    style: 'cancel',
-                },
-                {
-                    text: 'Update',
-                    onPress: updateStatus,
-                },
-            ]
-        );
+            cancelText: 'Cancel',
+            confirmText: 'Update',
+            destructive: nextStatus === 'REJECTED',
+            onConfirm: updateStatus,
+        });
     };
 
     const handleOpenDetails = (
@@ -351,6 +397,12 @@ export default function AdminOnboardingRequestsScreen() {
                 backgroundColor: '#F8FAFC',
             }}
         >
+            <AdminAlert
+                state={adminAlert}
+                onClose={closeAdminAlert}
+                onConfirm={confirmAdminAlert}
+            />
+
             <View
                 style={{
                     minHeight: 76,
@@ -902,3 +954,222 @@ export default function AdminOnboardingRequestsScreen() {
         </SafeAreaView>
     );
 }
+
+type AdminAlertProps = {
+    state: AdminAlertState;
+    onClose: () => void;
+    onConfirm: () => void | Promise<void>;
+};
+
+function AdminAlert({
+    state,
+    onClose,
+    onConfirm,
+}: AdminAlertProps) {
+    const visual = {
+        info: {
+            icon: 'information-circle' as const,
+            color: '#0284C7',
+            backgroundColor: '#E0F2FE',
+        },
+        success: {
+            icon: 'checkmark-circle' as const,
+            color: '#15803D',
+            backgroundColor: '#DCFCE7',
+        },
+        error: {
+            icon: 'alert-circle' as const,
+            color: '#DC2626',
+            backgroundColor: '#FEE2E2',
+        },
+        confirm: {
+            icon: 'swap-horizontal' as const,
+            color: '#0284C7',
+            backgroundColor: '#E0F2FE',
+        },
+    }[state.kind];
+
+    return (
+        <Modal
+            transparent
+            visible={state.visible}
+            animationType="fade"
+            statusBarTranslucent
+            onRequestClose={onClose}
+        >
+            <View style={alertStyles.overlay}>
+                <Pressable
+                    style={alertStyles.backdropPressable}
+                    onPress={onClose}
+                />
+
+                <View style={alertStyles.card}>
+                    <View
+                        style={[
+                            alertStyles.iconCircle,
+                            {
+                                backgroundColor:
+                                    visual.backgroundColor,
+                            },
+                        ]}
+                    >
+                        <Ionicons
+                            name={visual.icon}
+                            size={27}
+                            color={visual.color}
+                        />
+                    </View>
+
+                    <Text style={alertStyles.title}>
+                        {state.title}
+                    </Text>
+
+                    <Text style={alertStyles.message}>
+                        {state.message}
+                    </Text>
+
+                    <View style={alertStyles.actions}>
+                        {state.cancelText ? (
+                            <TouchableOpacity
+                                activeOpacity={0.8}
+                                onPress={onClose}
+                                style={alertStyles.cancelButton}
+                            >
+                                <Text
+                                    style={
+                                        alertStyles.cancelButtonText
+                                    }
+                                >
+                                    {state.cancelText}
+                                </Text>
+                            </TouchableOpacity>
+                        ) : null}
+
+                        <TouchableOpacity
+                            activeOpacity={0.85}
+                            onPress={onConfirm}
+                            style={[
+                                alertStyles.confirmButton,
+                                state.destructive
+                                    ? alertStyles.destructiveButton
+                                    : null,
+                            ]}
+                        >
+                            <Text
+                                style={
+                                    alertStyles.confirmButtonText
+                                }
+                            >
+                                {state.confirmText || 'OK'}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </View>
+        </Modal>
+    );
+}
+
+const alertStyles = StyleSheet.create({
+    overlay: {
+        flex: 1,
+        paddingHorizontal: 22,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(15, 23, 42, 0.58)',
+    },
+
+    backdropPressable: {
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: 0,
+    },
+
+    card: {
+        width: '100%',
+        maxWidth: 390,
+        padding: 22,
+        borderRadius: 20,
+        backgroundColor: '#FFFFFF',
+        alignItems: 'center',
+        shadowColor: '#0F172A',
+        shadowOffset: {
+            width: 0,
+            height: 10,
+        },
+        shadowOpacity: 0.2,
+        shadowRadius: 24,
+        elevation: 12,
+    },
+
+    iconCircle: {
+        width: 52,
+        height: 52,
+        borderRadius: 26,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+
+    title: {
+        marginTop: 14,
+        color: '#0F172A',
+        fontSize: 19,
+        lineHeight: 24,
+        fontWeight: '900',
+        textAlign: 'center',
+    },
+
+    message: {
+        marginTop: 8,
+        color: '#64748B',
+        fontSize: 14,
+        lineHeight: 21,
+        fontWeight: '500',
+        textAlign: 'center',
+    },
+
+    actions: {
+        width: '100%',
+        marginTop: 22,
+        flexDirection: 'row',
+        gap: 10,
+    },
+
+    cancelButton: {
+        flex: 1,
+        minHeight: 46,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#CBD5E1',
+        backgroundColor: '#FFFFFF',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+
+    cancelButtonText: {
+        color: '#475569',
+        fontSize: 14,
+        fontWeight: '800',
+    },
+
+    confirmButton: {
+        flex: 1,
+        minHeight: 46,
+        borderRadius: 12,
+        backgroundColor: '#149BD7',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+
+    destructiveButton: {
+        backgroundColor: '#DC2626',
+    },
+
+    confirmButtonText: {
+        color: '#FFFFFF',
+        fontSize: 14,
+        fontWeight: '900',
+    },
+});
