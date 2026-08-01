@@ -19,6 +19,20 @@ import {
     View,
 } from 'react-native';
 
+// Keeps the form fields from stretching edge-to-edge on wide
+// browser windows. Mobile/native is untouched — the continue
+// button below already self-limits via maxWidth: 420, this just
+// brings the fields above it in line with that same ceiling.
+const WEB_CONTENT_MAX_WIDTH = 520;
+const isWeb = Platform.OS === 'web';
+const webConstrained = isWeb
+    ? {
+        width: '100%' as const,
+        maxWidth: WEB_CONTENT_MAX_WIDTH,
+        alignSelf: 'center' as const,
+    }
+    : {};
+
 type FormErrors = {
     businessName: string;
     ownerName: string;
@@ -413,8 +427,8 @@ const pageStyles = StyleSheet.create({
     },
 
     formContent: {
-        width: 'auto',
         marginHorizontal: 16,
+        ...webConstrained,
     },
 
     header: {
@@ -445,6 +459,7 @@ const pageStyles = StyleSheet.create({
         flexShrink: 1,
         color: '#0F172A',
         fontSize: 23,
+        lineHeight: 28,
         fontWeight: '900',
     },
 
@@ -452,6 +467,7 @@ const pageStyles = StyleSheet.create({
         marginLeft: 8,
         color: '#0EA5E9',
         fontSize: 13,
+        lineHeight: 16,
         fontWeight: '800',
     },
 
@@ -476,6 +492,7 @@ const pageStyles = StyleSheet.create({
     label: {
         color: '#334155',
         fontSize: 14,
+        lineHeight: 18,
         fontWeight: '700',
     },
 
@@ -483,6 +500,7 @@ const pageStyles = StyleSheet.create({
         marginLeft: 3,
         color: '#EF4444',
         fontSize: 15,
+        lineHeight: 18,
         fontWeight: '800',
     },
 
@@ -538,6 +556,7 @@ const pageStyles = StyleSheet.create({
         marginTop: 4,
         color: '#EF4444',
         fontSize: 12,
+        lineHeight: 15,
         fontWeight: '600',
     },
 
@@ -564,6 +583,7 @@ const pageStyles = StyleSheet.create({
         marginRight: 9,
         color: '#FFFFFF',
         fontSize: 16,
+        lineHeight: 20,
         fontWeight: '800',
     },
 });

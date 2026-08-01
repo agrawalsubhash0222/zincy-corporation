@@ -12,6 +12,7 @@ import {
 import {
     ActivityIndicator,
     BackHandler,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
@@ -26,6 +27,18 @@ import {
 import { API_BASE_URL } from '@/services/api';
 
 const ADVANCE_AMOUNT = 5000;
+
+// Keeps the layout from stretching edge-to-edge on wide
+// browser windows. Mobile/native is untouched.
+const WEB_CONTENT_MAX_WIDTH = 520;
+const isWeb = Platform.OS === 'web';
+const webConstrained = isWeb
+    ? {
+        width: '100%' as const,
+        maxWidth: WEB_CONTENT_MAX_WIDTH,
+        alignSelf: 'center' as const,
+    }
+    : {};
 
 type RouteParams = {
     onboardingRequestId?: string | string[];
@@ -829,21 +842,23 @@ export default function CheckoutScreen() {
                     },
                 ]}
             >
-                <TouchableOpacity
-                    style={styles.button}
-                    activeOpacity={0.85}
-                    onPress={handleProceedToPay}
-                >
-                    <Text style={styles.buttonText}>
-                        Proceed to Pay
-                    </Text>
+                <View style={styles.footerInner}>
+                    <TouchableOpacity
+                        style={styles.button}
+                        activeOpacity={0.85}
+                        onPress={handleProceedToPay}
+                    >
+                        <Text style={styles.buttonText}>
+                            Proceed to Pay
+                        </Text>
 
-                    <Ionicons
-                        name="arrow-forward"
-                        size={18}
-                        color="#FFFFFF"
-                    />
-                </TouchableOpacity>
+                        <Ionicons
+                            name="arrow-forward"
+                            size={18}
+                            color="#FFFFFF"
+                        />
+                    </TouchableOpacity>
+                </View>
             </View>
         </SafeAreaView>
     );
@@ -949,6 +964,7 @@ const styles = StyleSheet.create({
         marginTop: 14,
         color: '#0F172A',
         fontSize: 18,
+        lineHeight: 22,
         fontWeight: '900',
     },
 
@@ -970,6 +986,7 @@ const styles = StyleSheet.create({
         marginTop: 14,
         color: '#0F172A',
         fontSize: 19,
+        lineHeight: 24,
         fontWeight: '900',
         textAlign: 'center',
     },
@@ -1006,14 +1023,14 @@ const styles = StyleSheet.create({
         paddingBottom: 14,
         borderBottomWidth: 1,
         borderBottomColor: '#E2E8F0',
-        flexDirection: 'row',
-        alignItems: 'center',
+        width: '100%',
         zIndex: 10,
     },
 
     headerRow: {
         flexDirection: 'row',
         alignItems: 'flex-start',
+        ...webConstrained,
     },
 
     backButton: {
@@ -1050,6 +1067,7 @@ const styles = StyleSheet.create({
         paddingTop: 14,
         paddingBottom: 12,
         backgroundColor: '#F8FAFC',
+        width: '100%',
         zIndex: 15,
         elevation: 3,
     },
@@ -1067,6 +1085,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.14,
         shadowRadius: 8,
         elevation: 4,
+        ...webConstrained,
     },
 
     summaryLabel: {
@@ -1100,6 +1119,7 @@ const styles = StyleSheet.create({
     scrollContent: {
         paddingHorizontal: 18,
         paddingTop: 2,
+        ...webConstrained,
     },
 
     card: {
@@ -1305,6 +1325,12 @@ const styles = StyleSheet.create({
         elevation: 10,
     },
 
+    footerInner: {
+        ...webConstrained,
+    },
+
+    // Capped instead of an unconstrained '60%' of a full-bleed
+    // container — stays a sensible size on large screens.
     button: {
         minHeight: 54,
         borderRadius: 16,
@@ -1322,6 +1348,8 @@ const styles = StyleSheet.create({
         elevation: 4,
         marginBottom: 10,
         width: '60%',
+        maxWidth: 260,
+        minWidth: 190,
         alignSelf: 'center',
     },
 

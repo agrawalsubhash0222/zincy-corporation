@@ -18,6 +18,19 @@ import {
 
 const BUSINESS_TYPES = ['Retail', 'Wholesale', 'Both'];
 
+// Keeps the page content from stretching edge-to-edge on
+// wide browser windows, matching the boxed/centered layout
+// used elsewhere. Mobile/native is untouched.
+const WEB_CONTENT_MAX_WIDTH = 520;
+const isWeb = Platform.OS === 'web';
+const webConstrained = isWeb
+    ? {
+        width: '100%' as const,
+        maxWidth: WEB_CONTENT_MAX_WIDTH,
+        alignSelf: 'center' as const,
+    }
+    : {};
+
 export default function ContactsScreen() {
     const { data, updateData } = useClientSetup();
     const scrollRef = useRef<ScrollView>(null);
@@ -399,10 +412,13 @@ function InputField({
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F8FAFC' },
 
+    // webConstrained keeps this from stretching edge-to-edge
+    // on wide browser windows; mobile padding is unchanged.
     scroll: {
         paddingHorizontal: 20,
         paddingTop: 18,
         paddingBottom: 50,
+        ...webConstrained,
     },
 
     headerRow: {

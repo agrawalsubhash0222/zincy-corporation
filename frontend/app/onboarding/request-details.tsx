@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useMemo } from 'react';
 import {
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
@@ -71,6 +72,19 @@ const cleanMobile = (mobile: unknown): string => {
         .replace(/\D/g, '')
         .slice(-10);
 };
+
+// Keeps the page content from stretching edge-to-edge on
+// wide browser windows, matching the boxed/centered layout
+// used elsewhere. Mobile/native is untouched.
+const WEB_CONTENT_MAX_WIDTH = 520;
+const isWeb = Platform.OS === 'web';
+const webConstrained = isWeb
+    ? {
+        width: '100%' as const,
+        maxWidth: WEB_CONTENT_MAX_WIDTH,
+        alignSelf: 'center' as const,
+    }
+    : {};
 
 export default function OnboardingRequestDetailsScreen() {
     const params = useLocalSearchParams<{
@@ -333,10 +347,13 @@ const styles = StyleSheet.create({
         flex: 1,
     },
 
+    // webConstrained keeps this from stretching edge-to-edge
+    // on wide browser windows; mobile padding is unchanged.
     scrollContent: {
         paddingHorizontal: 20,
         paddingTop: 22,
         paddingBottom: 40,
+        ...webConstrained,
     },
 
     scrollContentWithButton: {
@@ -484,6 +501,10 @@ const styles = StyleSheet.create({
         borderTopColor: '#E2E8F0',
     },
 
+    // webConstrained centers the button to the same column
+    // width as the scroll content on web; bottomContainer
+    // itself stays full-bleed so its background/border still
+    // span the screen.
     nextButton: {
         height: 54,
         flexDirection: 'row',
@@ -500,6 +521,7 @@ const styles = StyleSheet.create({
             width: 0,
             height: 3,
         },
+        ...webConstrained,
     },
 
     nextButtonText: {

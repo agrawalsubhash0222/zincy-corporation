@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/services/api';
 import { Ionicons } from '@expo/vector-icons';
 import {
     router,
@@ -13,6 +14,7 @@ import {
 import {
     ActivityIndicator,
     Alert,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
@@ -20,7 +22,6 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { API_BASE_URL } from '@/services/api';
 
 
 type SectionKey =
@@ -244,6 +245,19 @@ const getRouteParam = (
         : value ?? '';
 };
 
+// Keeps the page content from stretching edge-to-edge on
+// wide browser windows, matching the boxed/centered layout
+// used elsewhere. Mobile/native is untouched.
+const WEB_CONTENT_MAX_WIDTH = 520;
+const isWeb = Platform.OS === 'web';
+const webConstrained = isWeb
+    ? {
+        width: '100%' as const,
+        maxWidth: WEB_CONTENT_MAX_WIDTH,
+        alignSelf: 'center' as const,
+    }
+    : {};
+
 export default function ClientSetupSuccessScreen() {
     const params = useLocalSearchParams<{
     onboardingRequestId?: string | string[];
@@ -445,20 +459,22 @@ if (loading) {
             style={styles.container}
             edges={['top', 'left', 'right']}
         >
-            <View style={styles.centerContainer}>
-                <ActivityIndicator
-                    size="large"
-                    color="#0EA5E9"
-                />
+            <View style={styles.pageInner}>
+                <View style={styles.centerContainer}>
+                    <ActivityIndicator
+                        size="large"
+                        color="#0EA5E9"
+                    />
 
-                <Text style={styles.loadingTitle}>
-                    Loading submitted details
-                </Text>
+                    <Text style={styles.loadingTitle}>
+                        Loading submitted details
+                    </Text>
 
-                <Text style={styles.loadingMessage}>
-                    Please wait while we retrieve your
-                    saved business information.
-                </Text>
+                    <Text style={styles.loadingMessage}>
+                        Please wait while we retrieve your
+                        saved business information.
+                    </Text>
+                </View>
             </View>
         </SafeAreaView>
     );
@@ -470,55 +486,57 @@ if (errorMessage || !data) {
             style={styles.container}
             edges={['top', 'left', 'right']}
         >
-            <View style={styles.errorHeader}>
-                <TouchableOpacity
-                    onPress={handleBack}
-                    activeOpacity={0.7}
-                    style={styles.iconButton}
-                >
-                    <Ionicons
-                        name="arrow-back"
-                        size={23}
-                        color="#0F172A"
-                    />
-                </TouchableOpacity>
-            </View>
-
-            <View style={styles.centerContainer}>
-                <View style={styles.errorIcon}>
-                    <Ionicons
-                        name="alert-circle-outline"
-                        size={38}
-                        color="#DC2626"
-                    />
+            <View style={styles.pageInner}>
+                <View style={styles.errorHeader}>
+                    <TouchableOpacity
+                        onPress={handleBack}
+                        activeOpacity={0.7}
+                        style={styles.iconButton}
+                    >
+                        <Ionicons
+                            name="arrow-back"
+                            size={23}
+                            color="#0F172A"
+                        />
+                    </TouchableOpacity>
                 </View>
 
-                <Text style={styles.errorTitle}>
-                    Unable to load details
-                </Text>
+                <View style={styles.centerContainer}>
+                    <View style={styles.errorIcon}>
+                        <Ionicons
+                            name="alert-circle-outline"
+                            size={38}
+                            color="#DC2626"
+                        />
+                    </View>
 
-                <Text style={styles.errorMessage}>
-                    {errorMessage ||
-                        'Submitted details could not be found.'}
-                </Text>
-
-                <TouchableOpacity
-                    onPress={() =>
-                        void loadSavedDetails()
-                    }
-                    activeOpacity={0.85}
-                    style={styles.retryButton}
-                >
-                    <Ionicons
-                        name="refresh"
-                        size={18}
-                        color="#FFFFFF"
-                    />
-
-                    <Text style={styles.retryText}>
-                        Try Again
+                    <Text style={styles.errorTitle}>
+                        Unable to load details
                     </Text>
-                </TouchableOpacity>
+
+                    <Text style={styles.errorMessage}>
+                        {errorMessage ||
+                            'Submitted details could not be found.'}
+                    </Text>
+
+                    <TouchableOpacity
+                        onPress={() =>
+                            void loadSavedDetails()
+                        }
+                        activeOpacity={0.85}
+                        style={styles.retryButton}
+                    >
+                        <Ionicons
+                            name="refresh"
+                            size={18}
+                            color="#FFFFFF"
+                        />
+
+                        <Text style={styles.retryText}>
+                            Try Again
+                        </Text>
+                    </TouchableOpacity>
+                </View>
             </View>
         </SafeAreaView>
     );
@@ -556,303 +574,304 @@ return (
         style={styles.container}
         edges={['top', 'left', 'right']}
     >
-
-        <View style={styles.header}>
-            <TouchableOpacity
-                onPress={handleBack}
-                activeOpacity={0.7}
-                style={styles.iconButton}
-                accessibilityLabel="Go back"
-            >
-                <Ionicons
-                    name="arrow-back"
-                    size={23}
-                    color="#0F172A"
-                />
-            </TouchableOpacity>
-
-            <Text style={styles.headerTitle}>
-                Submitted Details
-            </Text>
-
-            <TouchableOpacity
-                onPress={handleHome}
-                activeOpacity={0.7}
-                style={[
-                    styles.iconButton,
-                    styles.homeButton,
-                ]}
-                accessibilityLabel="Go to home"
-            >
-                <Ionicons
-                    name="home-outline"
-                    size={22}
-                    color="#0284C7"
-                />
-            </TouchableOpacity>
-        </View>
-
-        <View style={styles.successCard}>
-            <View style={styles.successIcon}>
-                <Ionicons
-                    name="checkmark"
-                    size={25}
-                    color="#FFFFFF"
-                />
-            </View>
-
-            <View style={styles.successContent}>
-                <Text style={styles.successTitle}>
-                    Details saved successfully
-                </Text>
-
-                <Text style={styles.successMessage}>
-                    Your business information is saved
-                    and ready for the next stage.
-                </Text>
-            </View>
-        </View>
-
-        <ScrollView
-            contentContainerStyle={
-                styles.scrollContent
-            }
-            showsVerticalScrollIndicator={false}
-        >
-            <Text style={styles.instruction}>
-                Tap a section to view submitted information.
-            </Text>
-
-            <View style={styles.sectionsContainer}>
-                <AccordionSection
-                    title="Business Owner"
-                    subtitle="Owner and primary contact"
-                    icon="person-outline"
-                    expanded={
-                        expandedSection === 'owner'
-                    }
-                    onPress={() =>
-                        toggleSection('owner')
-                    }
+        <View style={styles.pageInner}>
+            <View style={styles.header}>
+                <TouchableOpacity
+                    onPress={handleBack}
+                    activeOpacity={0.7}
+                    style={styles.iconButton}
+                    accessibilityLabel="Go back"
                 >
-                    <InfoRow
-                        label="Owner name"
-                        value={getDisplayValue(
-                            data.ownerName
-                        )}
-                    />
-
-                    <InfoRow
-                        label="Owner contact"
-                        value={getDisplayPhone(
-                            data.ownerContact
-                        )}
-                    />
-
-                    <InfoRow
-                        label="Owner email"
-                        value={getDisplayValue(
-                            data.ownerEmail
-                        )}
-                    />
-
-                    <InfoRow
-                        label="Secondary contact"
-                        value={getDisplayPhone(
-                            data.secondaryContact
-                        )}
-                        last
-                    />
-                </AccordionSection>
-
-                <AccordionSection
-                    title="Business Profile"
-                    subtitle="Business and communication"
-                    icon="business-outline"
-                    expanded={
-                        expandedSection === 'business'
-                    }
-                    onPress={() =>
-                        toggleSection('business')
-                    }
-                >
-                    <InfoRow
-                        label="Business name"
-                        value={getDisplayValue(
-                            data.businessName
-                        )}
-                    />
-
-                    <InfoRow
-                        label="Business type"
-                        value={getDisplayValue(
-                            data.businessType
-                        )}
-                    />
-
-                    <InfoRow
-                        label="Contacts"
-                        value={businessContacts}
-                    />
-
-                    <InfoRow
-                        label="Business email"
-                        value={getDisplayValue(
-                            data.email
-                        )}
-                    />
-
-                    <InfoRow
-                        label="WhatsApp"
-                        value={getDisplayPhone(
-                            data.whatsappContact
-                        )}
-                        last
-                    />
-                </AccordionSection>
-
-                <AccordionSection
-                    title="Business Address"
-                    subtitle="Registered operating address"
-                    icon="location-outline"
-                    expanded={
-                        expandedSection === 'address'
-                    }
-                    onPress={() =>
-                        toggleSection('address')
-                    }
-                >
-                    <InfoRow
-                        label="Address"
-                        value={getDisplayValue(
-                            fullAddress
-                        )}
-                    />
-
-                    <InfoRow
-                        label="City / State"
-                        value={getDisplayValue(
-                            location
-                        )}
-                    />
-
-                    <InfoRow
-                        label="Pincode"
-                        value={getDisplayValue(
-                            data.pincode
-                        )}
-                        last
-                    />
-                </AccordionSection>
-
-                <AccordionSection
-                    title="Tax & Legal"
-                    subtitle="Registration and compliance"
-                    icon="document-text-outline"
-                    expanded={
-                        expandedSection === 'tax'
-                    }
-                    onPress={() =>
-                        toggleSection('tax')
-                    }
-                    last
-                >
-                    <InfoRow
-                        label="GST registered"
-                        value={gstStatus}
-                    />
-
-                    {data.gstRegistered === true && (
-                        <InfoRow
-                            label="GST number"
-                            value={getDisplayValue(
-                                data.gstNumber
-                            )}
-                        />
-                    )}
-
-                    <InfoRow
-                        label="PAN number"
-                        value={getDisplayValue(
-                            data.panNumber
-                        )}
-                    />
-
-                    <InfoRow
-                        label="MSME / Udyam"
-                        value={getDisplayValue(
-                            data.msmeNumber
-                        )}
-                    />
-
-                    <InfoRow
-                        label="FSSAI number"
-                        value={getDisplayValue(
-                            data.fssaiNumber
-                        )}
-                        last
-                    />
-                </AccordionSection>
-            </View>
-
-            <View style={styles.nextStepCard}>
-                <View style={styles.nextStepHeader}>
-                    <View style={styles.nextStepIcon}>
-                        <Ionicons
-                            name="server-outline"
-                            size={23}
-                            color="#0284C7"
-                        />
-                    </View>
-
-                    <View style={styles.nextStepTitleContainer}>
-                        <Text style={styles.nextStepLabel}>
-                            NEXT STEP
-                        </Text>
-
-                        <Text style={styles.nextStepTitle}>
-                            Server Setup
-                        </Text>
-                    </View>
-                </View>
-
-
-
-                <View style={styles.nextStepInfo}>
                     <Ionicons
-                        name="information-circle-outline"
-                        size={19}
-                        color="#0369A1"
+                        name="arrow-back"
+                        size={23}
+                        color="#0F172A"
                     />
+                </TouchableOpacity>
 
-                    <Text
-                        style={styles.nextStepInfoText}
-                    >
-                        Start with Server Setup to configure your hosting and server details for your business website.
-                    </Text>
-                </View>
+                <Text style={styles.headerTitle}>
+                    Submitted Details
+                </Text>
 
                 <TouchableOpacity
-                    onPress={handleContinue}
-                    activeOpacity={0.85}
-                    style={styles.continueButton}
+                    onPress={handleHome}
+                    activeOpacity={0.7}
+                    style={[
+                        styles.iconButton,
+                        styles.homeButton,
+                    ]}
+                    accessibilityLabel="Go to home"
                 >
-                    <Text
-                        style={
-                            styles.continueButtonText
-                        }
-                    >
-                        Continue to Server Setup
-                    </Text>
-
                     <Ionicons
-                        name="arrow-forward"
-                        size={19}
-                        color="#FFFFFF"
+                        name="home-outline"
+                        size={22}
+                        color="#0284C7"
                     />
                 </TouchableOpacity>
             </View>
-        </ScrollView>
+
+            <View style={styles.successCard}>
+                <View style={styles.successIcon}>
+                    <Ionicons
+                        name="checkmark"
+                        size={25}
+                        color="#FFFFFF"
+                    />
+                </View>
+
+                <View style={styles.successContent}>
+                    <Text style={styles.successTitle}>
+                        Details saved successfully
+                    </Text>
+
+                    <Text style={styles.successMessage}>
+                        Your business information is saved
+                        and ready for the next stage.
+                    </Text>
+                </View>
+            </View>
+
+            <ScrollView
+                contentContainerStyle={
+                    styles.scrollContent
+                }
+                showsVerticalScrollIndicator={false}
+            >
+                <Text style={styles.instruction}>
+                    Tap a section to view submitted information.
+                </Text>
+
+                <View style={styles.sectionsContainer}>
+                    <AccordionSection
+                        title="Business Owner"
+                        subtitle="Owner and primary contact"
+                        icon="person-outline"
+                        expanded={
+                            expandedSection === 'owner'
+                        }
+                        onPress={() =>
+                            toggleSection('owner')
+                        }
+                    >
+                        <InfoRow
+                            label="Owner name"
+                            value={getDisplayValue(
+                                data.ownerName
+                            )}
+                        />
+
+                        <InfoRow
+                            label="Owner contact"
+                            value={getDisplayPhone(
+                                data.ownerContact
+                            )}
+                        />
+
+                        <InfoRow
+                            label="Owner email"
+                            value={getDisplayValue(
+                                data.ownerEmail
+                            )}
+                        />
+
+                        <InfoRow
+                            label="Secondary contact"
+                            value={getDisplayPhone(
+                                data.secondaryContact
+                            )}
+                            last
+                        />
+                    </AccordionSection>
+
+                    <AccordionSection
+                        title="Business Profile"
+                        subtitle="Business and communication"
+                        icon="business-outline"
+                        expanded={
+                            expandedSection === 'business'
+                        }
+                        onPress={() =>
+                            toggleSection('business')
+                        }
+                    >
+                        <InfoRow
+                            label="Business name"
+                            value={getDisplayValue(
+                                data.businessName
+                            )}
+                        />
+
+                        <InfoRow
+                            label="Business type"
+                            value={getDisplayValue(
+                                data.businessType
+                            )}
+                        />
+
+                        <InfoRow
+                            label="Contacts"
+                            value={businessContacts}
+                        />
+
+                        <InfoRow
+                            label="Business email"
+                            value={getDisplayValue(
+                                data.email
+                            )}
+                        />
+
+                        <InfoRow
+                            label="WhatsApp"
+                            value={getDisplayPhone(
+                                data.whatsappContact
+                            )}
+                            last
+                        />
+                    </AccordionSection>
+
+                    <AccordionSection
+                        title="Business Address"
+                        subtitle="Registered operating address"
+                        icon="location-outline"
+                        expanded={
+                            expandedSection === 'address'
+                        }
+                        onPress={() =>
+                            toggleSection('address')
+                        }
+                    >
+                        <InfoRow
+                            label="Address"
+                            value={getDisplayValue(
+                                fullAddress
+                            )}
+                        />
+
+                        <InfoRow
+                            label="City / State"
+                            value={getDisplayValue(
+                                location
+                            )}
+                        />
+
+                        <InfoRow
+                            label="Pincode"
+                            value={getDisplayValue(
+                                data.pincode
+                            )}
+                            last
+                        />
+                    </AccordionSection>
+
+                    <AccordionSection
+                        title="Tax & Legal"
+                        subtitle="Registration and compliance"
+                        icon="document-text-outline"
+                        expanded={
+                            expandedSection === 'tax'
+                        }
+                        onPress={() =>
+                            toggleSection('tax')
+                        }
+                        last
+                    >
+                        <InfoRow
+                            label="GST registered"
+                            value={gstStatus}
+                        />
+
+                        {data.gstRegistered === true && (
+                            <InfoRow
+                                label="GST number"
+                                value={getDisplayValue(
+                                    data.gstNumber
+                                )}
+                            />
+                        )}
+
+                        <InfoRow
+                            label="PAN number"
+                            value={getDisplayValue(
+                                data.panNumber
+                            )}
+                        />
+
+                        <InfoRow
+                            label="MSME / Udyam"
+                            value={getDisplayValue(
+                                data.msmeNumber
+                            )}
+                        />
+
+                        <InfoRow
+                            label="FSSAI number"
+                            value={getDisplayValue(
+                                data.fssaiNumber
+                            )}
+                            last
+                        />
+                    </AccordionSection>
+                </View>
+
+                <View style={styles.nextStepCard}>
+                    <View style={styles.nextStepHeader}>
+                        <View style={styles.nextStepIcon}>
+                            <Ionicons
+                                name="server-outline"
+                                size={23}
+                                color="#0284C7"
+                            />
+                        </View>
+
+                        <View style={styles.nextStepTitleContainer}>
+                            <Text style={styles.nextStepLabel}>
+                                NEXT STEP
+                            </Text>
+
+                            <Text style={styles.nextStepTitle}>
+                                Server Setup
+                            </Text>
+                        </View>
+                    </View>
+
+
+
+                    <View style={styles.nextStepInfo}>
+                        <Ionicons
+                            name="information-circle-outline"
+                            size={19}
+                            color="#0369A1"
+                        />
+
+                        <Text
+                            style={styles.nextStepInfoText}
+                        >
+                            Start with Server Setup to configure your hosting and server details for your business website.
+                        </Text>
+                    </View>
+
+                    <TouchableOpacity
+                        onPress={handleContinue}
+                        activeOpacity={0.85}
+                        style={styles.continueButton}
+                    >
+                        <Text
+                            style={
+                                styles.continueButtonText
+                            }
+                        >
+                            Continue to Server Setup
+                        </Text>
+
+                        <Ionicons
+                            name="arrow-forward"
+                            size={19}
+                            color="#FFFFFF"
+                        />
+                    </TouchableOpacity>
+                </View>
+            </ScrollView>
+        </View>
     </SafeAreaView>
 );
 }
@@ -972,6 +991,15 @@ const styles = StyleSheet.create({
         backgroundColor: '#F8FAFC',
     },
 
+    // Wraps header + successCard + ScrollView so the whole
+    // page content is constrained to a centered, card-width
+    // column on web instead of stretching full width.
+    pageInner: {
+        flex: 1,
+        width: '100%',
+        ...webConstrained,
+    },
+
     scrollContent: {
         paddingHorizontal: 16,
         paddingTop: 6,
@@ -1009,6 +1037,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         padding: 14,
+        marginHorizontal: 16,
         backgroundColor: '#F0F9FF',
         borderWidth: 1,
         borderColor: '#BAE6FD',

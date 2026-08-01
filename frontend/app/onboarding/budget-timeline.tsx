@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
+    Platform,
     SafeAreaView,
     ScrollView,
     StyleSheet,
@@ -30,6 +31,19 @@ type FormErrors = {
     budget: string;
     timeline: string;
 };
+
+// Keeps the page content from stretching edge-to-edge on
+// wide browser windows, matching the boxed/centered layout
+// used elsewhere. Mobile/native is untouched.
+const WEB_CONTENT_MAX_WIDTH = 520;
+const isWeb = Platform.OS === 'web';
+const webConstrained = isWeb
+    ? {
+        width: '100%' as const,
+        maxWidth: WEB_CONTENT_MAX_WIDTH,
+        alignSelf: 'center' as const,
+    }
+    : {};
 
 export default function BudgetTimelineScreen() {
     const { data, updateData } = useOnboarding();
@@ -289,9 +303,12 @@ const styles = StyleSheet.create({
         paddingBottom: 8,
     },
 
+    // webConstrained keeps this from stretching edge-to-edge
+    // on wide browser windows; mobile padding is unchanged.
     content: {
         width: '100%',
         paddingHorizontal: 16,
+        ...webConstrained,
     },
 
     header: {

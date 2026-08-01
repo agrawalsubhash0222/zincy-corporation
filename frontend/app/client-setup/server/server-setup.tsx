@@ -14,6 +14,7 @@ import {
     ActivityIndicator,
     Alert,
     BackHandler,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
@@ -26,6 +27,13 @@ import { API_BASE_URL } from '@/services/api';
 
 const GST_RATE = 0.18;
 const YEARLY_DISCOUNT_RATE = 0.1;
+
+// Keeps the layout from stretching edge-to-edge on wide
+// browser windows. Mobile is untouched — this only kicks in
+// on web, where the SafeAreaView otherwise fills the full
+// viewport width.
+const WEB_CONTENT_MAX_WIDTH = 520;
+const isWeb = Platform.OS === 'web';
 
 const SERVERS = [
     {
@@ -365,200 +373,220 @@ export default function ServerSetupScreen() {
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
-                <View style={styles.headerRow}>
-                    <TouchableOpacity
-                        onPress={handleBack}
-                        style={styles.backButton}
-                        disabled={isSubmitting}
-                        activeOpacity={0.7}
-                    >
+                <View style={styles.headerInner}>
+                    <View style={styles.headerRow}>
+                        <TouchableOpacity
+                            onPress={handleBack}
+                            style={styles.backButton}
+                            disabled={isSubmitting}
+                            activeOpacity={0.7}
+                        >
+                            <Ionicons
+                                name="arrow-back"
+                                size={23}
+                                color="#0F172A"
+                            />
+                        </TouchableOpacity>
+
+                        <View style={styles.headerContent}>
+                            <Text style={styles.title}>
+                                Server Setup
+                            </Text>
+
+                            <Text style={styles.subtitle}>
+                                Select a deployment plan or skip
+                                this step for now.
+                            </Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.notice}>
                         <Ionicons
-                            name="arrow-back"
-                            size={23}
-                            color="#0F172A"
+                            name="information-circle-outline"
+                            size={18}
+                            color="#B45309"
                         />
-                    </TouchableOpacity>
 
-                    <View style={styles.headerContent}>
-                        <Text style={styles.title}>
-                            Server Setup
-                        </Text>
-
-                        <Text style={styles.subtitle}>
-                            Select a deployment plan or skip
-                            this step for now.
+                        <Text style={styles.noticeText}>
+                            Pricing is estimated and includes 18%
+                            GST. Final cost will be confirmed before
+                            deployment.
                         </Text>
                     </View>
-                </View>
-
-                <View style={styles.notice}>
-                    <Ionicons
-                        name="information-circle-outline"
-                        size={18}
-                        color="#B45309"
-                    />
-
-                    <Text style={styles.noticeText}>
-                        Pricing is estimated and includes 18%
-                        GST. Final cost will be confirmed before
-                        deployment.
-                    </Text>
                 </View>
             </View>
 
             <ScrollView
-                contentContainerStyle={styles.scrollContent}
+                contentContainerStyle={styles.scrollOuter}
                 showsVerticalScrollIndicator={false}
             >
-                {SERVERS.map((server) => {
-                    const monthlyPrice = calculatePrice(
-                        server.monthly
-                    );
+                <View style={styles.scrollContent}>
+                    {SERVERS.map((server) => {
+                        const monthlyPrice = calculatePrice(
+                            server.monthly
+                        );
 
-                    const yearlyOriginal =
-                        server.monthly * 12;
+                        const yearlyOriginal =
+                            server.monthly * 12;
 
-                    const yearlyBase =
-                        calculateYearlyPrice(server.monthly);
+                        const yearlyBase =
+                            calculateYearlyPrice(server.monthly);
 
-                    const yearlyPrice =
-                        calculatePrice(yearlyBase);
+                        const yearlyPrice =
+                            calculatePrice(yearlyBase);
 
-                    const monthlySelected = isSelected(
-                        server.name,
-                        'MONTHLY'
-                    );
+                        const monthlySelected = isSelected(
+                            server.name,
+                            'MONTHLY'
+                        );
 
-                    const yearlySelected = isSelected(
-                        server.name,
-                        'YEARLY'
-                    );
+                        const yearlySelected = isSelected(
+                            server.name,
+                            'YEARLY'
+                        );
 
-                    return (
-                        <View
-                            key={server.name}
-                            style={styles.serverCard}
-                        >
-                            <View style={styles.serverHeader}>
-                                <View style={styles.serverTitleBox}>
-                                    <Text style={styles.serverName}>
-                                        {server.name}
-                                    </Text>
+                        return (
+                            <View
+                                key={server.name}
+                                style={styles.serverCard}
+                            >
+                                <View style={styles.serverHeader}>
+                                    <View style={styles.serverTitleBox}>
+                                        <Text style={styles.serverName}>
+                                            {server.name}
+                                        </Text>
 
-                                    <Text style={styles.serverTag}>
-                                        {server.tag}
-                                    </Text>
+                                        <Text style={styles.serverTag}>
+                                            {server.tag}
+                                        </Text>
+                                    </View>
+                                </View>
+
+                                <Text style={styles.description}>
+                                    {server.description}
+                                </Text>
+
+                                <View style={styles.planRow}>
+                                    <PlanCard
+                                        title="Monthly"
+                                        period="M"
+                                        selected={monthlySelected}
+                                        baseAmount={monthlyPrice.baseAmount}
+                                        gstAmount={monthlyPrice.gstAmount}
+                                        totalAmount={monthlyPrice.totalAmount}
+                                        disabled={isSubmitting}
+                                        onPress={() =>
+                                            handleSelectPlan(
+                                                server.name,
+                                                'MONTHLY',
+                                                server.monthly
+                                            )
+                                        }
+                                    />
+
+                                    <PlanCard
+                                        title="Yearly"
+                                        period="Y"
+                                        selected={yearlySelected}
+                                        originalAmount={yearlyOriginal}
+                                        baseAmount={yearlyPrice.baseAmount}
+                                        gstAmount={yearlyPrice.gstAmount}
+                                        totalAmount={yearlyPrice.totalAmount}
+                                        discountText="10% Off"
+                                        disabled={isSubmitting}
+                                        onPress={() =>
+                                            handleSelectPlan(
+                                                server.name,
+                                                'YEARLY',
+                                                yearlyBase
+                                            )
+                                        }
+                                    />
                                 </View>
                             </View>
+                        );
+                    })}
 
-                            <Text style={styles.description}>
-                                {server.description}
-                            </Text>
+                    <View style={styles.skipInfo}>
+                        <Ionicons
+                            name="help-circle-outline"
+                            size={18}
+                            color="#64748B"
+                        />
 
-                            <View style={styles.planRow}>
-                                <PlanCard
-                                    title="Monthly"
-                                    selected={monthlySelected}
-                                    baseAmount={
-                                        monthlyPrice.baseAmount
-                                    }
-                                    gstAmount={
-                                        monthlyPrice.gstAmount
-                                    }
-                                    totalAmount={
-                                        monthlyPrice.totalAmount
-                                    }
-                                    footerText="per month"
-                                    disabled={isSubmitting}
-                                    onPress={() =>
-                                        handleSelectPlan(
-                                            server.name,
-                                            'MONTHLY',
-                                            server.monthly
-                                        )
-                                    }
-                                />
-
-                                <PlanCard
-                                    title="Yearly"
-                                    selected={yearlySelected}
-                                    originalAmount={
-                                        yearlyOriginal
-                                    }
-                                    baseAmount={
-                                        yearlyPrice.baseAmount
-                                    }
-                                    gstAmount={
-                                        yearlyPrice.gstAmount
-                                    }
-                                    totalAmount={
-                                        yearlyPrice.totalAmount
-                                    }
-                                    discountText="10% Off"
-                                    disabled={isSubmitting}
-                                    onPress={() =>
-                                        handleSelectPlan(
-                                            server.name,
-                                            'YEARLY',
-                                            yearlyBase
-                                        )
-                                    }
-                                />
-                            </View>
-                        </View>
-                    );
-                })}
-
-                <View style={styles.skipInfo}>
-                    <Ionicons
-                        name="help-circle-outline"
-                        size={18}
-                        color="#64748B"
-                    />
-
-                    <Text style={styles.skipInfoText}>
-                        Not sure which plan to choose? Skip for
-                        now and our team will recommend a suitable
-                        server during project planning.
-                    </Text>
+                        <Text style={styles.skipInfoText}>
+                            Not sure which plan to choose? Skip for
+                            now and our team will recommend a suitable
+                            server during project planning.
+                        </Text>
+                    </View>
                 </View>
             </ScrollView>
 
             <View style={styles.footer}>
-                {selectedPlan ? (
-                    <View style={styles.footerRow}>
-                        <View style={styles.selectionSummary}>
-                            <Text
-                                style={styles.selectedServer}
-                                numberOfLines={1}
-                            >
-                                {selectedPlan.serverName}
-                            </Text>
-
-                            <View style={styles.selectedDetails}>
-                                <Text style={styles.selectedPlan}>
-                                    {selectedPlanLabel}
+                <View style={styles.footerInner}>
+                    {selectedPlan ? (
+                        <View style={styles.footerRow}>
+                            <View style={styles.selectionSummary}>
+                                <Text style={styles.selectedServer} numberOfLines={1}>
+                                    {selectedPlan.serverName}
                                 </Text>
 
-                                <Text style={styles.selectedTotal}>
-                                    {formatCurrency(
-                                        selectedPlan.totalAmount
-                                    )}
-                                </Text>
+                                <View style={styles.selectedDetails}>
+                                    <Text style={styles.selectedPlan} numberOfLines={1}>
+                                        {selectedPlanLabel}
+                                    </Text>
+
+                                    <View style={styles.selectedPriceBox}>
+                                        <Text style={styles.selectedTotal}>
+                                            {formatCurrency(selectedPlan.totalAmount)}
+                                        </Text>
+
+                                        <Text style={styles.gstIncluded}>
+                                            Includes {formatCurrency(selectedPlan.gstAmount)} GST
+                                        </Text>
+                                    </View>
+                                </View>
                             </View>
 
-                            <Text style={styles.gstIncluded}>
-                                Includes{' '}
-                                {formatCurrency(
-                                    selectedPlan.gstAmount
-                                )}{' '}
-                                GST
-                            </Text>
-                        </View>
+                            <TouchableOpacity
+                                style={[
+                                    styles.continueButton,
+                                    isSubmitting &&
+                                    styles.disabledButton,
+                                ]}
+                                activeOpacity={0.85}
+                                onPress={handleNext}
+                                disabled={isSubmitting}
+                            >
+                                {isSubmitting ? (
+                                    <ActivityIndicator
+                                        size="small"
+                                        color="#FFFFFF"
+                                    />
+                                ) : (
+                                    <>
+                                        <Text
+                                            style={
+                                                styles.buttonText
+                                            }
+                                        >
+                                            Continue
+                                        </Text>
 
+                                        <Ionicons
+                                            name="arrow-forward"
+                                            size={17}
+                                            color="#FFFFFF"
+                                        />
+                                    </>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    ) : (
                         <TouchableOpacity
                             style={[
-                                styles.continueButton,
+                                styles.skipButton,
                                 isSubmitting &&
                                 styles.disabledButton,
                             ]}
@@ -573,54 +601,20 @@ export default function ServerSetupScreen() {
                                 />
                             ) : (
                                 <>
-                                    <Text
-                                        style={
-                                            styles.buttonText
-                                        }
-                                    >
-                                        Continue
+                                    <Text style={styles.buttonText}>
+                                        Skip for Now
                                     </Text>
 
                                     <Ionicons
                                         name="arrow-forward"
-                                        size={17}
+                                        size={18}
                                         color="#FFFFFF"
                                     />
                                 </>
                             )}
                         </TouchableOpacity>
-                    </View>
-                ) : (
-                    <TouchableOpacity
-                        style={[
-                            styles.skipButton,
-                            isSubmitting &&
-                            styles.disabledButton,
-                        ]}
-                        activeOpacity={0.85}
-                        onPress={handleNext}
-                        disabled={isSubmitting}
-                    >
-                        {isSubmitting ? (
-                            <ActivityIndicator
-                                size="small"
-                                color="#FFFFFF"
-                            />
-                        ) : (
-                            <>
-                                <Text style={styles.buttonText}>
-                                    Skip for Now
-                                </Text>
-
-                                <Ionicons
-                                    name="arrow-forward"
-                                    size={18}
-                                    color="#FFFFFF"
-                                />
-                            </>
-                        )}
-                    </TouchableOpacity>
-                )}
+                    )}
+                </View>
             </View>
         </SafeAreaView>
     );
@@ -628,12 +622,12 @@ export default function ServerSetupScreen() {
 
 type PlanCardProps = {
     title: string;
+    period: 'M' | 'Y';
     selected: boolean;
     baseAmount: number;
     gstAmount: number;
     totalAmount: number;
     originalAmount?: number;
-    footerText?: string
     discountText?: string;
     disabled?: boolean;
     onPress: () => void;
@@ -641,12 +635,12 @@ type PlanCardProps = {
 
 function PlanCard({
     title,
+    period,
     selected,
     baseAmount,
     gstAmount,
     totalAmount,
     originalAmount,
-    footerText,
     discountText,
     disabled,
     onPress,
@@ -662,9 +656,7 @@ function PlanCard({
             disabled={disabled}
         >
             <View style={styles.planHeader}>
-                <Text style={styles.planTitle}>
-                    {title}
-                </Text>
+                <Text style={styles.planTitle}>{title}</Text>
 
                 <Ionicons
                     name={
@@ -673,42 +665,34 @@ function PlanCard({
                             : 'ellipse-outline'
                     }
                     size={20}
-                    color={
-                        selected ? '#0284C7' : '#94A3B8'
-                    }
+                    color={selected ? '#149BD7' : '#94A3B8'}
                 />
             </View>
 
             <View style={styles.priceLine}>
-                {originalAmount ? (
+                {!!originalAmount && (
                     <Text style={styles.originalPrice}>
                         {formatCurrency(originalAmount)}
                     </Text>
-                ) : null}
+                )}
 
                 <Text style={styles.basePrice}>
-                    {formatCurrency(baseAmount)}
+                    {formatCurrency(baseAmount)}/{period}
                 </Text>
             </View>
 
-            {discountText ? (
+            {!!discountText && (
                 <View style={styles.discountBadge}>
                     <Text style={styles.discountText}>
                         {discountText}
                     </Text>
                 </View>
-            ) : footerText ? (
-                <Text style={styles.billingPeriod}>
-                    {footerText}
-                </Text>
-            ) : null}
+            )}
 
             <View style={styles.taxDivider} />
 
             <View style={styles.taxRow}>
-                <Text style={styles.taxLabel}>
-                    18% GST
-                </Text>
+                <Text style={styles.taxLabel}>18% GST</Text>
 
                 <Text style={styles.taxValue}>
                     + {formatCurrency(gstAmount)}
@@ -716,9 +700,7 @@ function PlanCard({
             </View>
 
             <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>
-                    Total
-                </Text>
+                <Text style={styles.totalLabel}>Total</Text>
 
                 <Text style={styles.totalValue}>
                     {formatCurrency(totalAmount)}
@@ -728,6 +710,17 @@ function PlanCard({
     );
 }
 
+// Shared "shrink to a sane reading width on web, stay full
+// width on native" rule used by the header/footer/scroll
+// content wrappers below.
+const webConstrained = isWeb
+    ? {
+        width: '100%' as const,
+        maxWidth: WEB_CONTENT_MAX_WIDTH,
+        alignSelf: 'center' as const,
+    }
+    : {};
+
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -735,13 +728,19 @@ const styles = StyleSheet.create({
     },
 
     header: {
-        marginTop: 0,
-        paddingTop: 44,
-        paddingHorizontal: 18,
-        paddingBottom: 13,
+        paddingTop: 6,
+        paddingBottom: 8,
         backgroundColor: '#FFFFFF',
         borderBottomWidth: 1,
         borderBottomColor: '#E2E8F0',
+        // full-bleed band; the inner content is what gets
+        // constrained on web
+        width: '100%',
+    },
+
+    headerInner: {
+        paddingHorizontal: 14,
+        ...webConstrained,
     },
 
     headerRow: {
@@ -750,10 +749,10 @@ const styles = StyleSheet.create({
     },
 
     backButton: {
-        width: 36,
-        height: 36,
-        marginRight: 8,
-        borderRadius: 18,
+        width: 32,
+        height: 32,
+        marginRight: 6,
+        borderRadius: 16,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -763,24 +762,24 @@ const styles = StyleSheet.create({
     },
 
     title: {
-        fontSize: 23,
+        fontSize: 21,
         fontWeight: '900',
         color: '#0F172A',
     },
 
     subtitle: {
-        marginTop: 3,
-        fontSize: 13,
-        lineHeight: 19,
+        marginTop: 1,
+        fontSize: 11.5,
+        lineHeight: 16,
         fontWeight: '600',
         color: '#64748B',
     },
 
     notice: {
-        marginTop: 13,
-        paddingHorizontal: 11,
-        paddingVertical: 9,
-        borderRadius: 12,
+        marginTop: 7,
+        paddingHorizontal: 9,
+        paddingVertical: 7,
+        borderRadius: 10,
         borderWidth: 1,
         borderColor: '#FDE68A',
         backgroundColor: '#FFFBEB',
@@ -790,23 +789,28 @@ const styles = StyleSheet.create({
 
     noticeText: {
         flex: 1,
-        marginLeft: 7,
-        fontSize: 11.5,
-        lineHeight: 17,
+        marginLeft: 6,
+        fontSize: 10.5,
+        lineHeight: 15,
         fontWeight: '600',
         color: '#92400E',
     },
 
+    scrollOuter: {
+        flexGrow: 1,
+        paddingTop: 8,
+        paddingBottom: 105,
+    },
+
     scrollContent: {
-        paddingHorizontal: 18,
-        paddingTop: 14,
-        paddingBottom: 125,
+        paddingHorizontal: 14,
+        ...webConstrained,
     },
 
     serverCard: {
-        marginBottom: 12,
-        padding: 14,
-        borderRadius: 16,
+        marginBottom: 8,
+        padding: 11,
+        borderRadius: 14,
         borderWidth: 1,
         borderColor: '#E2E8F0',
         backgroundColor: '#FFFFFF',
@@ -823,36 +827,37 @@ const styles = StyleSheet.create({
     },
 
     serverName: {
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: '900',
         color: '#0F172A',
     },
 
     serverTag: {
-        marginTop: 2,
-        fontSize: 10.5,
+        marginTop: 1,
+        fontSize: 9.5,
         fontWeight: '800',
-        color: '#0284C7',
+        color: '#149BD7',
     },
 
     description: {
-        marginTop: 8,
-        fontSize: 12,
-        lineHeight: 17,
+        marginTop: 4,
+        fontSize: 10.5,
+        lineHeight: 14,
         fontWeight: '500',
         color: '#64748B',
     },
 
     planRow: {
-        marginTop: 12,
+        marginTop: 7,
         flexDirection: 'row',
-        gap: 9,
+        gap: 7,
     },
 
     planCard: {
         flex: 1,
-        minHeight: 176,
-        padding: 11,
+        paddingHorizontal: 11,
+        paddingTop: 10,
+        paddingBottom: 9,
         borderRadius: 13,
         borderWidth: 1,
         borderColor: '#E2E8F0',
@@ -860,7 +865,7 @@ const styles = StyleSheet.create({
     },
 
     selectedPlanCard: {
-        borderColor: '#0EA5E9',
+        borderColor: '#149BD7',
         backgroundColor: '#F0F9FF',
     },
 
@@ -871,51 +876,42 @@ const styles = StyleSheet.create({
     },
 
     planTitle: {
-        fontSize: 11,
+        fontSize: 10,
         fontWeight: '900',
         color: '#64748B',
     },
 
     priceLine: {
-        minHeight: 28,
-        marginTop: 8,
+        marginTop: 5,
+        minHeight: 22,
         flexDirection: 'row',
-        alignItems: 'baseline',
         flexWrap: 'wrap',
-        gap: 5,
+        alignItems: 'center',
+        gap: 4,
     },
 
     originalPrice: {
-        fontSize: 10,
+        fontSize: 8.5,
         fontWeight: '700',
         color: '#94A3B8',
         textDecorationLine: 'line-through',
     },
 
     basePrice: {
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: '900',
         color: '#0F172A',
     },
 
-    billingPeriod: {
-        marginTop: 2,
-        fontSize: 9.5,
-        fontWeight: '600',
-        color: '#94A3B8',
-    },
-
     discountBadge: {
-        alignSelf: 'flex-start',
-        marginTop: 2,
-        paddingHorizontal: 7,
-        paddingVertical: 2,
+        paddingHorizontal: 5,
+        paddingVertical: 1,
         borderRadius: 99,
-        backgroundColor: '#DCFCE7',
+        backgroundColor: '#fafdfb',
     },
 
     discountText: {
-        fontSize: 9,
+        fontSize: 7.5,
         fontWeight: '900',
         color: '#15803D',
     },
@@ -983,26 +979,31 @@ const styles = StyleSheet.create({
     },
 
     footer: {
-        paddingHorizontal: 18,
-        paddingTop: 11,
-        paddingBottom: 48,
+        paddingTop: 6,
+        paddingBottom: 6,
         borderTopWidth: 1,
         borderTopColor: '#E2E8F0',
         backgroundColor: '#FFFFFF',
+        width: '100%',
+    },
+
+    footerInner: {
+        paddingHorizontal: 14,
+        ...webConstrained,
     },
 
     footerRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 9,
+        gap: 8,
     },
 
     selectionSummary: {
         flex: 1,
-        minHeight: 65,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 14,
+        minHeight: 48,
+        paddingHorizontal: 9,
+        paddingVertical: 6,
+        borderRadius: 13,
         borderWidth: 1,
         borderColor: '#E2E8F0',
         backgroundColor: '#F8FAFC',
@@ -1010,7 +1011,8 @@ const styles = StyleSheet.create({
     },
 
     selectedServer: {
-        fontSize: 12,
+        fontSize: 10.5,
+        lineHeight: 13,
         fontWeight: '900',
         color: '#0F172A',
     },
@@ -1023,20 +1025,28 @@ const styles = StyleSheet.create({
     },
 
     selectedPlan: {
-        fontSize: 9.5,
-        fontWeight: '800',
+        flex: 1,
+        marginRight: 6,
+        fontSize: 8,
+        lineHeight: 10,
+        fontWeight: '900',
         color: '#15803D',
     },
 
+    selectedPriceBox: {
+        alignItems: 'flex-end',
+    },
+
     selectedTotal: {
-        fontSize: 15,
+        fontSize: 13,
+        lineHeight: 15,
         fontWeight: '900',
         color: '#0F172A',
     },
-
     gstIncluded: {
         marginTop: 2,
-        fontSize: 8.5,
+        fontSize: 7,
+        lineHeight: 9,
         fontWeight: '600',
         color: '#64748B',
         textAlign: 'right',
@@ -1044,9 +1054,9 @@ const styles = StyleSheet.create({
 
     continueButton: {
         width: 126,
-        minHeight: 65,
+        height: 48,
         borderRadius: 14,
-        backgroundColor: '#0EA5E9',
+        backgroundColor: '#149BD7',
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
@@ -1072,5 +1082,27 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '900',
         color: '#FFFFFF',
+    },
+
+    priceSummary: {
+        marginTop: 6,
+        paddingTop: 6,
+        borderTopWidth: 1,
+        borderTopColor: '#E2E8F0',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+
+    taxText: {
+        fontSize: 8.5,
+        fontWeight: '600',
+        color: '#64748B',
+    },
+
+    totalText: {
+        fontSize: 9,
+        fontWeight: '900',
+        color: '#0F172A',
     },
 });
