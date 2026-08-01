@@ -1323,7 +1323,7 @@ const styles = StyleSheet.create({
         borderTopColor: '#E2E8F0',
         zIndex: 30,
         elevation: 10,
-        height: 100,
+        height: 80,
     },
 
     footerInner: {

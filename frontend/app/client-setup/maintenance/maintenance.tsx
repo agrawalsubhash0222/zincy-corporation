@@ -12,8 +12,8 @@ import {
 } from 'react';
 import {
     ActivityIndicator,
-    Alert,
     BackHandler,
+    Modal,
     Platform,
     ScrollView,
     StyleSheet,
@@ -71,20 +71,6 @@ const formatCurrency = (amount: number) => {
         maximumFractionDigits: 2,
     })}`;
 };
-
-// Alert.alert is a no-op on react-native-web, so plain
-// validation alerts never appeared on web. This falls back
-// to window.alert there while keeping native behavior as-is.
-function notify(title: string, message: string) {
-    if (Platform.OS === 'web') {
-        if (typeof window !== 'undefined') {
-            window.alert(`${title}\n\n${message}`);
-        }
-        return;
-    }
-
-    Alert.alert(title, message);
-}
 
 // Keeps the layout from stretching edge-to-edge on wide
 // browser windows. Mobile/native is untouched.
@@ -211,6 +197,30 @@ export default function MaintenanceScreen() {
 
     const [saving, setSaving] =
         useState(false);
+
+    const [alertState, setAlertState] = useState({
+        visible: false,
+        title: '',
+        message: '',
+    });
+
+    const showAlert = useCallback(
+        (title: string, message: string) => {
+            setAlertState({
+                visible: true,
+                title,
+                message,
+            });
+        },
+        []
+    );
+
+    const closeAlert = useCallback(() => {
+        setAlertState((current) => ({
+            ...current,
+            visible: false,
+        }));
+    }, []);
 
     const selectedAmount = useMemo(() => {
         if (selected !== 'ZINCY_MANAGED') {
@@ -416,7 +426,7 @@ export default function MaintenanceScreen() {
 
     const handleCheckout = async () => {
         if (!selected) {
-            notify(
+            showAlert(
                 'Select maintenance option',
                 'Please choose one maintenance option to continue.'
             );
@@ -427,7 +437,7 @@ export default function MaintenanceScreen() {
             selected === 'ZINCY_MANAGED'
             && !billing
         ) {
-            notify(
+            showAlert(
                 'Select billing plan',
                 'Please choose Monthly or Yearly billing.'
             );
@@ -438,7 +448,7 @@ export default function MaintenanceScreen() {
             !Number.isInteger(onboardingRequestId)
             || onboardingRequestId <= 0
         ) {
-            notify(
+            showAlert(
                 'Missing request',
                 'Onboarding request ID is missing.'
             );
@@ -500,7 +510,7 @@ export default function MaintenanceScreen() {
                 },
             });
         } catch (error) {
-            notify(
+            showAlert(
                 'Unable to save',
                 error instanceof Error
                     ? error.message
@@ -846,7 +856,66 @@ export default function MaintenanceScreen() {
                     )}
                 </View>
             </View>
+
+            <CommonAlert
+                visible={alertState.visible}
+                title={alertState.title}
+                message={alertState.message}
+                onClose={closeAlert}
+            />
         </SafeAreaView>
+    );
+}
+
+function CommonAlert({
+    visible,
+    title,
+    message,
+    onClose,
+}: {
+    visible: boolean;
+    title: string;
+    message: string;
+    onClose: () => void;
+}) {
+    return (
+        <Modal
+            visible={visible}
+            transparent
+            animationType="fade"
+            statusBarTranslucent
+            onRequestClose={onClose}
+        >
+            <View style={styles.alertOverlay}>
+                <View style={styles.alertCard}>
+                    <View style={styles.alertIconBox}>
+                        <Ionicons
+                            name="information-circle-outline"
+                            size={25}
+                            color="#0284C7"
+                        />
+                    </View>
+
+                    <Text style={styles.alertTitle}>
+                        {title}
+                    </Text>
+
+                    <Text style={styles.alertMessage}>
+                        {message}
+                    </Text>
+
+                    <TouchableOpacity
+                        style={styles.alertButton}
+                        activeOpacity={0.85}
+                        onPress={onClose}
+                    >
+                        <Text style={styles.alertButtonText}>
+                            OK
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </Modal>
     );
 }
 
@@ -1412,6 +1481,72 @@ const styles = StyleSheet.create({
         marginRight: 8,
         color: '#FFFFFF',
         fontSize: 15,
+        lineHeight: 18,
+        fontWeight: '900',
+    },
+
+    alertOverlay: {
+        flex: 1,
+        paddingHorizontal: 24,
+        backgroundColor: 'rgba(15, 23, 42, 0.55)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+
+    alertCard: {
+        width: '100%',
+        maxWidth: 360,
+        paddingHorizontal: 20,
+        paddingTop: 20,
+        paddingBottom: 16,
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        backgroundColor: '#FFFFFF',
+        alignItems: 'center',
+        elevation: 8,
+    },
+
+    alertIconBox: {
+        width: 44,
+        height: 44,
+        marginBottom: 11,
+        borderRadius: 22,
+        backgroundColor: '#E0F2FE',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+
+    alertTitle: {
+        color: '#0F172A',
+        fontSize: 17,
+        lineHeight: 22,
+        fontWeight: '900',
+        textAlign: 'center',
+    },
+
+    alertMessage: {
+        marginTop: 7,
+        color: '#64748B',
+        fontSize: 12.5,
+        lineHeight: 18,
+        fontWeight: '600',
+        textAlign: 'center',
+    },
+
+    alertButton: {
+        width: '100%',
+        height: 44,
+        marginTop: 17,
+        borderRadius: 13,
+        backgroundColor: '#0EA5E9',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+
+    alertButtonText: {
+        color: '#FFFFFF',
+        fontSize: 14,
         lineHeight: 18,
         fontWeight: '900',
     },
