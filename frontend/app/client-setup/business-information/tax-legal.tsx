@@ -344,6 +344,7 @@ export default function TaxBusinessScreen() {
                     keyboardShouldPersistTaps="handled"
                     keyboardDismissMode="on-drag"
                 >
+                    <View style={styles.contentWrap}>
                     <View style={styles.header}>
                         <TouchableOpacity
                             style={styles.backButton}
@@ -354,7 +355,7 @@ export default function TaxBusinessScreen() {
                         >
                             <Ionicons
                                 name="arrow-back"
-                                size={25}
+                                size={22}
                                 color="#0F172A"
                             />
                         </TouchableOpacity>
@@ -365,19 +366,25 @@ export default function TaxBusinessScreen() {
                             </Text>
 
                             <Text style={styles.subtitle}>
-                                Step 4 of 4 • Compliance and
+                                Step 4 of 4 · Compliance and
                                 billing setup
                             </Text>
                         </View>
                     </View>
 
+                    <View style={styles.progressTrack}>
+                        <View style={[styles.progressFill, { width: '100%' }]} />
+                    </View>
+
                     <View style={styles.card}>
                         <View style={styles.infoBox}>
-                            <Ionicons
-                                name="document-text-outline"
-                                size={27}
-                                color="#0284C7"
-                            />
+                            <View style={styles.infoIconWrap}>
+                                <Ionicons
+                                    name="document-text-outline"
+                                    size={20}
+                                    color="#0284C7"
+                                />
+                            </View>
 
                             <View style={styles.infoContent}>
                                 <Text style={styles.infoTitle}>
@@ -434,7 +441,7 @@ export default function TaxBusinessScreen() {
                                                         ? 'radio-button-on'
                                                         : 'radio-button-off'
                                                 }
-                                                size={20}
+                                                size={19}
                                                 color={
                                                     selected
                                                         ? '#0284C7'
@@ -459,9 +466,12 @@ export default function TaxBusinessScreen() {
                         </View>
 
                         {errors.gstRegistered ? (
-                            <Text style={styles.errorText}>
-                                {errors.gstRegistered}
-                            </Text>
+                            <View style={styles.errorRow}>
+                                <Ionicons name="alert-circle" size={13} color="#EF4444" />
+                                <Text style={styles.errorText}>
+                                    {errors.gstRegistered}
+                                </Text>
+                            </View>
                         ) : null}
 
                         {gstRegistered === 'Yes' ? (
@@ -617,6 +627,7 @@ export default function TaxBusinessScreen() {
                             color="#FFFFFF"
                         />
                     </TouchableOpacity>
+                    </View>
                 </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>
@@ -700,9 +711,12 @@ function InputField({
             />
 
             {error ? (
-                <Text style={styles.errorText}>
-                    {error}
-                </Text>
+                <View style={styles.errorRow}>
+                    <Ionicons name="alert-circle" size={13} color="#EF4444" />
+                    <Text style={styles.errorText}>
+                        {error}
+                    </Text>
+                </View>
             ) : null}
         </View>
     );
@@ -720,87 +734,123 @@ const styles = StyleSheet.create({
 
     scrollContent: {
         paddingHorizontal: 20,
-        paddingTop: 18,
-        paddingBottom: 42,
+        paddingTop: 12,
+        paddingBottom: 40,
+        alignItems: 'center',
+    },
+
+    contentWrap: {
+        width: '100%',
+        maxWidth: 520,
     },
 
     header: {
         flexDirection: 'row',
         alignItems: 'flex-start',
-        marginBottom: 22,
+        marginBottom: 20,
     },
 
     backButton: {
         width: 40,
         height: 40,
-        borderRadius: 20,
+        borderRadius: 12,
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 8,
+        marginRight: 12,
     },
 
     headerContent: {
         flex: 1,
-        paddingTop: 3,
     },
 
     title: {
-        fontSize: 25,
-        lineHeight: 31,
-        fontWeight: '900',
+        fontSize: 22,
+        fontWeight: '800',
         color: '#0F172A',
+        letterSpacing: -0.3,
     },
 
     subtitle: {
-        marginTop: 5,
-        fontSize: 14,
-        lineHeight: 20,
+        marginTop: 4,
+        fontSize: 13,
+        lineHeight: 18,
         color: '#64748B',
         fontWeight: '600',
     },
 
+    progressTrack: {
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: '#E2E8F0',
+        overflow: 'hidden',
+        marginBottom: 24,
+    },
+
+    progressFill: {
+        height: '100%',
+        borderRadius: 3,
+        backgroundColor: '#0EA5E9',
+    },
+
     card: {
-        padding: 18,
+        padding: 20,
         borderRadius: 20,
         borderWidth: 1,
         borderColor: '#E2E8F0',
         backgroundColor: '#FFFFFF',
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 2,
     },
 
     infoBox: {
         flexDirection: 'row',
         alignItems: 'flex-start',
+        gap: 12,
         padding: 14,
         marginBottom: 22,
         borderWidth: 1,
         borderColor: '#BAE6FD',
-        borderRadius: 15,
+        borderRadius: 16,
         backgroundColor: '#F0F9FF',
+    },
+
+    infoIconWrap: {
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        backgroundColor: '#E0F2FE',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
 
     infoContent: {
         flex: 1,
-        marginLeft: 12,
     },
 
     infoTitle: {
-        fontSize: 15,
-        fontWeight: '900',
+        fontSize: 14.5,
+        fontWeight: '800',
         color: '#0F172A',
     },
 
     infoText: {
         marginTop: 4,
-        fontSize: 13,
-        lineHeight: 19,
-        fontWeight: '600',
+        fontSize: 12.5,
+        lineHeight: 18,
+        fontWeight: '500',
         color: '#64748B',
     },
 
     label: {
-        marginBottom: 8,
-        fontSize: 14,
-        fontWeight: '800',
+        marginBottom: 10,
+        fontSize: 13,
+        fontWeight: '700',
         color: '#334155',
     },
 
@@ -815,7 +865,7 @@ const styles = StyleSheet.create({
     radioOption: {
         flex: 1,
         height: 48,
-        borderRadius: 14,
+        borderRadius: 12,
         borderWidth: 1,
         borderColor: '#CBD5E1',
         backgroundColor: '#F8FAFC',
@@ -835,8 +885,8 @@ const styles = StyleSheet.create({
 
     radioText: {
         marginLeft: 7,
-        fontSize: 14,
-        fontWeight: '800',
+        fontSize: 13.5,
+        fontWeight: '700',
         color: '#64748B',
     },
 
@@ -854,14 +904,14 @@ const styles = StyleSheet.create({
 
     input: {
         minHeight: 50,
-        borderRadius: 14,
+        borderRadius: 12,
         borderWidth: 1,
         borderColor: '#CBD5E1',
         backgroundColor: '#F8FAFC',
         paddingHorizontal: 14,
         paddingVertical: 13,
-        fontSize: 15,
-        fontWeight: '600',
+        fontSize: 14.5,
+        fontWeight: '500',
         color: '#0F172A',
     },
 
@@ -870,11 +920,16 @@ const styles = StyleSheet.create({
         backgroundColor: '#FEF2F2',
     },
 
-    errorText: {
+    errorRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
         marginTop: 6,
+    },
+
+    errorText: {
         fontSize: 12,
-        lineHeight: 17,
-        fontWeight: '700',
+        fontWeight: '600',
         color: '#EF4444',
     },
 
@@ -882,7 +937,7 @@ const styles = StyleSheet.create({
         marginTop: 7,
         fontSize: 12,
         lineHeight: 18,
-        fontWeight: '600',
+        fontWeight: '500',
         color: '#64748B',
     },
 
@@ -893,13 +948,19 @@ const styles = StyleSheet.create({
     },
 
     saveButton: {
-        height: 54,
+        height: 52,
         marginTop: 24,
-        borderRadius: 16,
+        borderRadius: 14,
         backgroundColor: '#0EA5E9',
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
+        gap: 8,
+        shadowColor: '#0EA5E9',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+        elevation: 3,
     },
 
     saveButtonDisabled: {
@@ -907,9 +968,8 @@ const styles = StyleSheet.create({
     },
 
     saveButtonText: {
-        marginRight: 8,
-        fontSize: 16,
-        fontWeight: '900',
+        fontSize: 15.5,
+        fontWeight: '800',
         color: '#FFFFFF',
     },
 });
