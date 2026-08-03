@@ -29,7 +29,7 @@ export function useProfile() {
         return;
       }
 
-      const latestUser = await getProfile(session.mobile);
+      const latestUser = await getProfile();
 
       await updateSessionUser(latestUser);
       setUser(latestUser);

@@ -137,6 +137,7 @@ async function getServerSetup(
         `${API_BASE_URL}/server-setup/onboarding/${onboardingRequestId}`,
         {
             method: 'GET',
+            credentials: 'include',
             headers: {
                 Accept: 'application/json',
             },
@@ -171,6 +172,7 @@ async function getMaintenanceSetup(
         `${API_BASE_URL}/maintenance-setup/onboarding/${onboardingRequestId}`,
         {
             method: 'GET',
+            credentials: 'include',
             headers: {
                 Accept: 'application/json',
             },

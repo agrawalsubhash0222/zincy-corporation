@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import com.zincycorporation.dto.UpdateProfileRequest;
 import com.zincycorporation.entity.Users;
 import com.zincycorporation.repository.UserRepository;
+import com.zincycorporation.security.CurrentUserService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -13,19 +14,14 @@ import lombok.RequiredArgsConstructor;
 public class ProfileService {
 
     private final UserRepository userRepository;
+    private final CurrentUserService currentUserService;
 
-    public Users getProfile(String mobile) {
-        String normalizedMobile = normalizeMobile(mobile);
-
-        return userRepository.findByMobile(normalizedMobile)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    public Users getProfile() {
+        return currentUserService.requireUser();
     }
 
-    public Users updateProfile(String mobile, UpdateProfileRequest request) {
-        String normalizedMobile = normalizeMobile(mobile);
-
-        Users user = userRepository.findByMobile(normalizedMobile)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    public Users updateProfile(UpdateProfileRequest request) {
+        Users user = currentUserService.requireUser();
 
         user.setFirstName(request.getFirstName().trim());
 
@@ -42,23 +38,5 @@ public class ProfileService {
         user.setProfileImageUrl(request.getProfileImageUrl());
 
         return userRepository.save(user);
-    }
-
-    private String normalizeMobile(String mobile) {
-        if (mobile == null || mobile.isBlank()) {
-            return mobile;
-        }
-
-        String digits = mobile.replaceAll("[^0-9]", "");
-
-        if (digits.length() == 10) {
-            return "+91" + digits;
-        }
-
-        if (digits.length() == 12 && digits.startsWith("91")) {
-            return "+" + digits;
-        }
-
-        return mobile.trim();
     }
 }

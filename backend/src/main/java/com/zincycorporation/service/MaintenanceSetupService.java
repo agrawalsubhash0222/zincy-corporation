@@ -7,6 +7,7 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.zincycorporation.constants.MaintenancePricingCatalog;
 import com.zincycorporation.dto.MaintenanceSetupRequest;
 import com.zincycorporation.dto.MaintenanceSetupResponse;
 import com.zincycorporation.entity.MaintenanceSetup;
@@ -27,18 +28,16 @@ public class MaintenanceSetupService {
         private final MaintenanceSetupRepository maintenanceSetupRepository;
 
         private final OnboardingRequestRepository onboardingRequestRepository;
+        private final OnboardingAccessService onboardingAccessService;
 
         @Transactional
         public MaintenanceSetupResponse save(
                         MaintenanceSetupRequest dto) {
                 validate(dto);
 
-                OnboardingRequest onboardingRequest = onboardingRequestRepository
-                                .findById(dto.getOnboardingRequestId())
-                                .orElseThrow(
-                                                () -> new RuntimeException(
-                                                                "Onboarding request not found: "
-                                                                                + dto.getOnboardingRequestId()));
+                OnboardingRequest onboardingRequest =
+                                onboardingAccessService.requireOwned(
+                                                dto.getOnboardingRequestId());
 
                 BigDecimal baseAmount = resolveBaseAmount(dto);
 
@@ -94,6 +93,8 @@ public class MaintenanceSetupService {
         public Optional<MaintenanceSetupResponse> findByOnboardingRequestId(
                         Long onboardingRequestId) {
 
+                onboardingAccessService.requireOwned(onboardingRequestId);
+
                 return maintenanceSetupRepository
                                 .findByOnboardingRequestId(onboardingRequestId)
                                 .map(this::mapResponse);
@@ -126,19 +127,9 @@ public class MaintenanceSetupService {
 
         private BigDecimal resolveBaseAmount(
                         MaintenanceSetupRequest dto) {
-                if (dto.getMaintenanceType() != MaintenanceType.ZINCY_MANAGED) {
-                        return BigDecimal.ZERO.setScale(2);
-                }
-
-                if (dto.getBaseAmount() == null
-                                || dto.getBaseAmount()
-                                                .compareTo(BigDecimal.ZERO) < 0) {
-                        throw new IllegalArgumentException(
-                                        "Valid maintenance amount is required");
-                }
-
-                return dto.getBaseAmount()
-                                .setScale(2, RoundingMode.HALF_UP);
+                return MaintenancePricingCatalog.resolve(
+                                dto.getMaintenanceType(),
+                                dto.getBillingType());
         }
 
         private MaintenanceBillingType resolveBillingType(

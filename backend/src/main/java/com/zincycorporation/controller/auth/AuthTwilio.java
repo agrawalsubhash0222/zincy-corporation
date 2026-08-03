@@ -5,6 +5,7 @@ import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.zincycorporation.entity.Users;
 import com.zincycorporation.repository.UserRepository;
+import com.zincycorporation.security.AuthSessionService;
 import com.zincycorporation.service.otp.OtpServiceTwilio;
 
 @ConditionalOnProperty(name = "twilio.enabled", havingValue = "true")
@@ -29,6 +31,9 @@ public class AuthTwilio {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private AuthSessionService authSessionService;
 
     @PostMapping("/send-otp-twilio")
     public ResponseEntity<?> sendOtpTwilio(
@@ -85,9 +90,9 @@ public class AuthTwilio {
                         "message", "User not found"));
             }
 
-            return ResponseEntity.ok(Map.of(
-                    "message", "Login Success",
-                    "user", existingUser.get()));
+            return authenticatedResponse(
+                    "Login Success",
+                    existingUser.get());
         }
 
         // 🆕 SIGNUP FLOW
@@ -105,25 +110,43 @@ public class AuthTwilio {
                         "message", "First name is required"));
             }
 
+            if (password == null || password.length() < 8) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "message", "Password must contain at least 8 characters"));
+            }
+
             newUser.setFirstName(firstName.trim());
             newUser.setLastName(
                     lastName == null ? null : lastName.trim());
             newUser.setEmail(email);
             newUser.setPassword(passwordEncoder.encode(password));
             newUser.setMobile(mobile);
+            newUser.setRole("CUSTOMER");
             newUser.setIsVerified(true); // mark verified
 
             // optional fields
             newUser.setLoginType("OTP");
 
-            userRepository.save(newUser);
+            Users savedUser = userRepository.save(newUser);
 
-            return ResponseEntity.ok(Map.of(
-                    "message", "Signup Success",
-                    "user", newUser));
+            return authenticatedResponse(
+                    "Signup Success",
+                    savedUser);
         }
 
         return ResponseEntity.badRequest().body(Map.of(
                 "message", "Invalid type"));
+    }
+
+    private ResponseEntity<?> authenticatedResponse(
+            String message,
+            Users user) {
+        return ResponseEntity.ok()
+                .header(
+                        HttpHeaders.SET_COOKIE,
+                        authSessionService.createSessionCookie(user))
+                .body(Map.of(
+                        "message", message,
+                        "user", user));
     }
 }

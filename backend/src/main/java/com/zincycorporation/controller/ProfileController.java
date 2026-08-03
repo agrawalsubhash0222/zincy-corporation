@@ -1,7 +1,6 @@
 package com.zincycorporation.controller;
 
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,15 +20,14 @@ public class ProfileController {
 
     private final ProfileService profileService;
 
-    @GetMapping("/{mobile}")
-    public Users getProfile(@PathVariable String mobile) {
-        return profileService.getProfile(mobile);
+    @GetMapping("/me")
+    public Users getProfile() {
+        return profileService.getProfile();
     }
 
-    @PutMapping("/{mobile}")
+    @PutMapping("/me")
     public Users updateProfile(
-            @PathVariable String mobile,
             @Valid @RequestBody UpdateProfileRequest request) {
-        return profileService.updateProfile(mobile, request);
+        return profileService.updateProfile(request);
     }
 }

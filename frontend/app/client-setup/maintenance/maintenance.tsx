@@ -477,7 +477,6 @@ export default function MaintenanceScreen() {
                     onboardingRequestId,
                     maintenanceType: selected,
                     billingType: maintenanceBilling,
-                    baseAmount: selectedAmount,
                 });
 
             router.push({

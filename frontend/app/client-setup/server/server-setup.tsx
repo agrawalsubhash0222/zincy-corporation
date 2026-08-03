@@ -87,7 +87,6 @@ type ServerSetupPayload = {
     onboardingRequestId: number;
     serverName?: string;
     billingType?: BillingType;
-    amount?: number;
     skipped: boolean;
 };
 
@@ -98,8 +97,10 @@ type PriceDetails = {
 };
 
 const calculatePrice = (baseAmount: number): PriceDetails => {
-    const gstAmount = Math.round(baseAmount * GST_RATE);
-    const totalAmount = baseAmount + gstAmount;
+    const gstAmount =
+        Math.round(baseAmount * GST_RATE * 100) / 100;
+    const totalAmount =
+        Math.round((baseAmount + gstAmount) * 100) / 100;
 
     return {
         baseAmount,
@@ -117,7 +118,10 @@ const calculateYearlyPrice = (monthlyAmount: number) => {
 };
 
 const formatCurrency = (amount: number) =>
-    `₹${amount.toLocaleString('en-IN')}`;
+    `₹${amount.toLocaleString('en-IN', {
+        minimumFractionDigits: Number.isInteger(amount) ? 0 : 2,
+        maximumFractionDigits: 2,
+    })}`;
 
 const parseSingleParam = (
     value: string | string[] | undefined
@@ -227,6 +231,7 @@ export default function ServerSetupScreen() {
             `${API_BASE_URL}/server-setup`,
             {
                 method: 'POST',
+                credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json',
                 },
@@ -300,11 +305,6 @@ export default function ServerSetupScreen() {
                 onboardingRequestId,
                 serverName: selectedPlan.serverName,
                 billingType: selectedPlan.billingType,
-
-                // Send base price only.
-                // Backend will calculate 18% GST and total amount.
-                amount: selectedPlan.baseAmount,
-
                 skipped: false,
             });
 

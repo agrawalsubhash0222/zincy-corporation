@@ -318,6 +318,7 @@ const loadSavedDetails = useCallback(async () => {
             `${API_BASE_URL}/client-business-setup/onboarding/${onboardingRequestId}`,
             {
                 method: 'GET',
+                credentials: 'include',
                 headers: {
                     Accept: 'application/json',
                 },

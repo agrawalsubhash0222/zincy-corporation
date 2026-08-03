@@ -13,7 +13,6 @@ public class OnboardingRequestDto {
     private String ownerName;
 
     private String mobile;
-    private String userMobile;
     private String email;
 
     private List<String> projectTypes;

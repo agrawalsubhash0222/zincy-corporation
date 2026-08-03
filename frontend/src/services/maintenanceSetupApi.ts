@@ -14,7 +14,6 @@ export type MaintenanceSetupPayload = {
     onboardingRequestId: number;
     maintenanceType: MaintenanceSetupType;
     billingType: MaintenanceBillingType;
-    baseAmount: number;
 };
 
 export type MaintenanceSetupResponse = {
@@ -35,6 +34,7 @@ export async function saveMaintenanceSetup(
         `${API_BASE_URL}/maintenance-setup`,
         {
             method: 'POST',
+            credentials: 'include',
             headers: {
                 'Content-Type':
                     'application/json',
@@ -60,7 +60,10 @@ export async function getMaintenanceSetup(
     onboardingRequestId: number
 ): Promise<MaintenanceSetupResponse | null> {
     const response = await fetch(
-        `${API_BASE_URL}/maintenance-setup/onboarding/${onboardingRequestId}`
+        `${API_BASE_URL}/maintenance-setup/onboarding/${onboardingRequestId}`,
+        {
+            credentials: 'include',
+        }
     );
 
     if (response.status === 404) {

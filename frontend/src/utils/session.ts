@@ -1,6 +1,8 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
+import api from '@/services/api';
+
 const SESSION_KEY = 'user';
 
 export const saveSession = async (user: any) => {
@@ -27,8 +29,6 @@ export const saveSession = async (user: any) => {
       await SecureStore.setItemAsync(SESSION_KEY, value);
     }
 
-    console.log('Session saved successfully:', finalUser);
-
     return finalUser;
   } catch (error) {
     console.log('Session save error:', error);
@@ -38,34 +38,21 @@ export const saveSession = async (user: any) => {
 
 export const getSession = async () => {
   try {
-    let value: string | null = null;
-
-    if (Platform.OS === 'web') {
-      value = localStorage.getItem(SESSION_KEY);
-    } else {
-      value = await SecureStore.getItemAsync(SESSION_KEY);
-    }
-
-    if (!value) return null;
-
-    return JSON.parse(value);
+    const response = await api.get('/auth/session');
+    return await saveSession(response.data);
   } catch (error) {
-    console.log('Session get error:', error);
+    await clearLocalSession();
     return null;
   }
 };
 
 export const clearSession = async () => {
   try {
-    if (Platform.OS === 'web') {
-      localStorage.removeItem(SESSION_KEY);
-    } else {
-      await SecureStore.deleteItemAsync(SESSION_KEY);
-    }
-
-    console.log('Session cleared successfully');
-  } catch (error) {
-    console.log('Session clear error:', error);
+    await api.post('/auth/logout');
+  } catch {
+    // Always clear the local display cache, even if the session already expired.
+  } finally {
+    await clearLocalSession();
   }
 };
 
@@ -74,13 +61,13 @@ export const updateSessionUser = async (updatedUser: any) => {
 };
 
 export const removeSession = async () => {
-  try {
-    if (Platform.OS === 'web') {
-      localStorage.removeItem(SESSION_KEY);
-    } else {
-      await SecureStore.deleteItemAsync(SESSION_KEY);
-    }
-  } catch (error) {
-    console.log('Session remove error:', error);
+  await clearSession();
+};
+
+const clearLocalSession = async () => {
+  if (Platform.OS === 'web') {
+    localStorage.removeItem(SESSION_KEY);
+  } else {
+    await SecureStore.deleteItemAsync(SESSION_KEY);
   }
 };

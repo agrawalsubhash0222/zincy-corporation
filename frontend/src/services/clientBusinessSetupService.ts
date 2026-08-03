@@ -80,6 +80,7 @@ export const saveClientBusinessSetup = async (
         `${API_BASE_URL}/client-business-setup`,
         {
             method: 'POST',
+            credentials: 'include',
             headers: {
                 'Content-Type': 'application/json',
                 Accept: 'application/json',
@@ -118,6 +119,7 @@ export const getClientBusinessSetupByOnboardingId =
             `${API_BASE_URL}/client-business-setup/onboarding/${onboardingRequestId}`,
             {
                 method: 'GET',
+                credentials: 'include',
                 headers: {
                     Accept: 'application/json',
                 },
@@ -152,6 +154,7 @@ export const checkClientBusinessSetupExists =
             `${API_BASE_URL}/client-business-setup/onboarding/${onboardingRequestId}/exists`,
             {
                 method: 'GET',
+                credentials: 'include',
                 headers: {
                     Accept: 'application/json',
                 },

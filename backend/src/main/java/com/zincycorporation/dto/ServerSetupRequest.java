@@ -1,7 +1,5 @@
 package com.zincycorporation.dto;
 
-import java.math.BigDecimal;
-
 import com.zincycorporation.enums.BillingType;
 
 import lombok.Getter;
@@ -16,11 +14,6 @@ public class ServerSetupRequest {
     private String serverName;
 
     private BillingType billingType;
-
-    /**
-     * Price before GST.
-     */
-    private BigDecimal amount;
 
     private Boolean skipped;
 }

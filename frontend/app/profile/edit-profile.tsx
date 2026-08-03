@@ -41,7 +41,7 @@ export default function EditProfileScreen() {
 
             setMobile(session.mobile);
 
-            const profile = await getProfile(session.mobile);
+            const profile = await getProfile();
 
             setFirstName(profile.firstName || '');
             setLastName(profile.lastName || '');
@@ -73,7 +73,7 @@ export default function EditProfileScreen() {
         try {
             setSaving(true);
 
-            const updatedUser = await updateProfile(mobile, {
+            const updatedUser = await updateProfile({
                 firstName: firstName.trim(),
                 lastName: lastName.trim(),
                 email: email.trim(),
