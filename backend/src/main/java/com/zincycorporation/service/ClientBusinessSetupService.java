@@ -23,6 +23,7 @@ public class ClientBusinessSetupService {
 
         private final ClientBusinessSetupRepository repository;
         private final OnboardingRequestRepository onboardingRequestRepository;
+        private final OnboardingAccessService onboardingAccessService;
         private final ObjectMapper objectMapper;
 
         @Transactional
@@ -34,12 +35,9 @@ public class ClientBusinessSetupService {
                                         "onboardingRequestId is required");
                 }
 
-                OnboardingRequest onboardingRequest = onboardingRequestRepository
-                                .findById(dto.getOnboardingRequestId())
-                                .orElseThrow(
-                                                () -> new RuntimeException(
-                                                                "Onboarding request not found: "
-                                                                                + dto.getOnboardingRequestId()));
+                OnboardingRequest onboardingRequest =
+                                onboardingAccessService.requireOwned(
+                                                dto.getOnboardingRequestId());
 
                 ClientBusinessSetup setup = repository
                                 .findByOnboardingRequestId(
@@ -142,6 +140,8 @@ public class ClientBusinessSetupService {
                                         "Valid onboarding request ID is required");
                 }
 
+                onboardingAccessService.requireOwned(onboardingRequestId);
+
                 ClientBusinessSetup setup = repository
                                 .findByOnboardingRequestId(
                                                 onboardingRequestId)
@@ -161,6 +161,8 @@ public class ClientBusinessSetupService {
                                 onboardingRequestId <= 0) {
                         return false;
                 }
+
+                onboardingAccessService.requireOwned(onboardingRequestId);
 
                 boolean exists = repository.existsByOnboardingRequestId(
                                 onboardingRequestId);

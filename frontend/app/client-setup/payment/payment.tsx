@@ -122,6 +122,7 @@ export default function PaymentScreen() {
                 `${API_BASE_URL}/payments/orders`,
                 {
                     method: 'POST',
+                    credentials: 'include',
                     headers: {
                         Accept: 'application/json',
                         'Content-Type': 'application/json',
@@ -158,6 +159,7 @@ export default function PaymentScreen() {
                 `${API_BASE_URL}/payments/verify`,
                 {
                     method: 'POST',
+                    credentials: 'include',
                     headers: {
                         Accept: 'application/json',
                         'Content-Type': 'application/json',

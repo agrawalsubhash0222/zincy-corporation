@@ -7,17 +7,16 @@ export type UpdateProfilePayload = {
     profileImageUrl?: string;
 };
 
-export const getProfile = async (mobile: string) => {
-    const response = await api.get(`/profile/${(mobile)}`);
+export const getProfile = async () => {
+    const response = await api.get('/profile/me');
     return response.data;
 };
 
 export const updateProfile = async (
-    mobile: string,
     payload: UpdateProfilePayload
 ) => {
     const response = await api.put(
-        `/profile/${(mobile)}`,
+        '/profile/me',
         payload
     );
 

@@ -52,9 +52,7 @@ export default function OnboardingCheckScreen() {
             }
 
             const response =
-                await getMyOnboardingRequests(
-                    session.mobile,
-                );
+                await getMyOnboardingRequests();
 
             if (
                 !Array.isArray(response) ||

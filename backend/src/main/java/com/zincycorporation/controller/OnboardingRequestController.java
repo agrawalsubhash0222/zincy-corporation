@@ -37,10 +37,9 @@ public class OnboardingRequestController {
                 return service.submit(dto);
         }
 
-        @GetMapping("/customer/{userMobile}")
-        public List<CustomerLatestOnboardingResponse> getCustomerRequests(
-                        @PathVariable String userMobile) {
-                return service.getCustomerRequests(userMobile);
+        @GetMapping("/customer/me")
+        public List<CustomerLatestOnboardingResponse> getCustomerRequests() {
+                return service.getCustomerRequests();
         }
 
         @GetMapping("/customer/request/{id}/progress")

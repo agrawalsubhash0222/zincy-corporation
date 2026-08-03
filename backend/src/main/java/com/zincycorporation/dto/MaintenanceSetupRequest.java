@@ -1,7 +1,5 @@
 package com.zincycorporation.dto;
 
-import java.math.BigDecimal;
-
 import com.zincycorporation.enums.MaintenanceBillingType;
 import com.zincycorporation.enums.MaintenanceType;
 
@@ -18,5 +16,4 @@ public class MaintenanceSetupRequest {
 
     private MaintenanceBillingType billingType;
 
-    private BigDecimal baseAmount;
 }

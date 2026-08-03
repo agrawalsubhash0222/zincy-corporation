@@ -1,6 +1,5 @@
 import { useOnboarding } from '@/context/OnboardingContext';
 import api from '@/services/api';
-import { getSession } from '@/utils/session';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import {
@@ -85,13 +84,10 @@ export default function ReviewSubmitScreen() {
             setSubmitting(true);
             setErrorMsg('');
 
-            const session = await getSession();
-
             await api.post('/onboarding-requests', {
                 businessName: data.businessName,
                 ownerName: data.ownerName,
                 mobile: data.mobile,
-                userMobile: session?.mobile || data.mobile,
                 email: data.email,
                 projectTypes: data.projectTypes,
                 requirement: data.requirement,

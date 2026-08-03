@@ -8,6 +8,7 @@ const isDevelopment = process.env.NODE_ENV !== 'production';
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
     Accept: 'application/json',
@@ -40,7 +41,6 @@ api.interceptors.response.use(
 
       if (error.response) {
         console.log('STATUS:', error.response.status);
-        console.log('DATA:', error.response.data);
       }
     }
 

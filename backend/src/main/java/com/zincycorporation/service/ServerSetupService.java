@@ -6,6 +6,7 @@ import java.math.RoundingMode;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.zincycorporation.constants.ServerPricingCatalog;
 import com.zincycorporation.dto.ServerSetupRequest;
 import com.zincycorporation.dto.ServerSetupResponse;
 import com.zincycorporation.entity.OnboardingRequest;
@@ -23,17 +24,15 @@ public class ServerSetupService {
 
         private final ServerSetupRepository serverSetupRepository;
         private final OnboardingRequestRepository onboardingRequestRepository;
+        private final OnboardingAccessService onboardingAccessService;
 
         @Transactional
         public ServerSetupResponse save(ServerSetupRequest dto) {
                 validate(dto);
 
-                OnboardingRequest onboardingRequest = onboardingRequestRepository
-                                .findById(dto.getOnboardingRequestId())
-                                .orElseThrow(
-                                                () -> new IllegalArgumentException(
-                                                                "Onboarding request not found: "
-                                                                                + dto.getOnboardingRequestId()));
+                OnboardingRequest onboardingRequest =
+                                onboardingAccessService.requireOwned(
+                                                dto.getOnboardingRequestId());
 
                 boolean skipped = Boolean.TRUE.equals(dto.getSkipped());
 
@@ -76,6 +75,10 @@ public class ServerSetupService {
                                         "onboardingRequestId is required");
                 }
 
+                OnboardingRequest onboardingRequest =
+                                onboardingAccessService.requireOwned(
+                                                onboardingRequestId);
+
                 ServerSetup serverSetup = serverSetupRepository
                                 .findByOnboardingRequestId(onboardingRequestId)
                                 .orElseThrow(
@@ -85,7 +88,7 @@ public class ServerSetupService {
 
                 return mapToResponse(
                                 serverSetup,
-                                serverSetup.getOnboardingRequest());
+                                onboardingRequest);
         }
 
         private void applySkippedSetup(
@@ -101,9 +104,9 @@ public class ServerSetupService {
         private void applySelectedPlan(
                         ServerSetup serverSetup,
                         ServerSetupRequest dto) {
-                BigDecimal baseAmount = dto.getAmount().setScale(
-                                2,
-                                RoundingMode.HALF_UP);
+                BigDecimal baseAmount = ServerPricingCatalog.resolve(
+                                dto.getServerName(),
+                                dto.getBillingType());
 
                 BigDecimal gstAmount = baseAmount
                                 .multiply(GST_RATE)
@@ -156,12 +159,6 @@ public class ServerSetupService {
                                         "billingType is required");
                 }
 
-                if (dto.getAmount() == null
-                                || dto.getAmount().compareTo(
-                                                BigDecimal.ZERO) <= 0) {
-                        throw new IllegalArgumentException(
-                                        "amount must be greater than zero");
-                }
         }
 
         private ServerSetupResponse mapToResponse(

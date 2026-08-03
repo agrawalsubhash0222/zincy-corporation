@@ -3,6 +3,7 @@ package com.zincycorporation.controller.auth;
 import java.util.Map;
 import java.util.Optional;
 
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.zincycorporation.entity.Users;
 import com.zincycorporation.repository.UserRepository;
+import com.zincycorporation.security.AuthSessionService;
 import com.zincycorporation.service.otp.OtpServiceWhatsapp;
 
 @RestController
@@ -36,14 +38,17 @@ public class AuthWhatsapp {
         private final UserRepository userRepository;
         private final PasswordEncoder passwordEncoder;
         private final OtpServiceWhatsapp otpServiceWhatsapp;
+        private final AuthSessionService authSessionService;
 
         public AuthWhatsapp(
                         UserRepository userRepository,
                         OtpServiceWhatsapp otpServiceWhatsapp,
-                        PasswordEncoder passwordEncoder) {
+                        PasswordEncoder passwordEncoder,
+                        AuthSessionService authSessionService) {
                 this.userRepository = userRepository;
                 this.otpServiceWhatsapp = otpServiceWhatsapp;
                 this.passwordEncoder = passwordEncoder;
+                this.authSessionService = authSessionService;
         }
 
         @PostMapping("/send-otp")
@@ -110,10 +115,9 @@ public class AuthWhatsapp {
                                                         "message", "User not found"));
                                 }
 
-                                return ResponseEntity.ok(Map.of(
-                                                "success", true,
-                                                "message", "Login Success",
-                                                "user", existingUser.get()));
+                                return authenticatedResponse(
+                                                "Login Success",
+                                                existingUser.get());
                         }
 
                         if (existingUser.isPresent()) {
@@ -131,6 +135,12 @@ public class AuthWhatsapp {
                                 throw new IllegalArgumentException("First name is required");
                         }
 
+                        if (request.password() == null
+                                        || request.password().length() < 8) {
+                                throw new IllegalArgumentException(
+                                                "Password must contain at least 8 characters");
+                        }
+
                         newUser.setFirstName(firstName);
                         newUser.setLastName(
                                         request.lastName() == null
@@ -140,20 +150,34 @@ public class AuthWhatsapp {
                         newUser.setPassword(
                                         passwordEncoder.encode(request.password()));
                         newUser.setMobile(mobile);
+                        newUser.setRole("CUSTOMER");
                         newUser.setIsVerified(true);
                         newUser.setLoginType("OTP");
 
-                        userRepository.save(newUser);
+                        Users savedUser = userRepository.save(newUser);
 
-                        return ResponseEntity.ok(Map.of(
-                                        "success", true,
-                                        "message", "Signup Success",
-                                        "user", newUser));
+                        return authenticatedResponse(
+                                        "Signup Success",
+                                        savedUser);
                 } catch (IllegalArgumentException exception) {
                         return ResponseEntity.badRequest().body(Map.of(
                                         "success", false,
                                         "message", exception.getMessage()));
                 }
+        }
+
+        private ResponseEntity<?> authenticatedResponse(
+                        String message,
+                        Users user) {
+                return ResponseEntity.ok()
+                                .header(
+                                                HttpHeaders.SET_COOKIE,
+                                                authSessionService
+                                                                .createSessionCookie(user))
+                                .body(Map.of(
+                                                "success", true,
+                                                "message", message,
+                                                "user", user));
         }
 
         private String normalizeType(String type) {

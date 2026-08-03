@@ -107,6 +107,7 @@ export type AdminOnboardingDetails = {
 const onboardingApi = axios.create({
     baseURL: `${API_BASE_URL}/onboarding-requests`,
     timeout: 15000,
+    withCredentials: true,
     headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
@@ -156,16 +157,12 @@ export const updateOnboardingRequestStatus =
     };
 
 export const getMyOnboardingRequests =
-    async (
-        userMobile: string
-    ): Promise<CustomerOnboardingRequest[]> => {
+    async (): Promise<CustomerOnboardingRequest[]> => {
         const response =
             await onboardingApi.get<
                 CustomerOnboardingRequest[]
             >(
-                `/customer/${encodeURIComponent(
-                    userMobile
-                )}`
+                '/customer/me'
             );
 
         if (!Array.isArray(response.data)) {

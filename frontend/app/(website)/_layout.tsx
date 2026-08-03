@@ -23,7 +23,7 @@ export default function WebsiteLayout() {
             textAlign: 'center',
           }}
         >
-          © 2026 Zincy Corporation Pvt. Ltd. All Rights Reserved.
+          © 2026 Zincy Corporation. All Rights Reserved.
         </Text>
       </View>
     </View>

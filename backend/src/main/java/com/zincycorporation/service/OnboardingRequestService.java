@@ -12,9 +12,11 @@ import org.springframework.web.server.ResponseStatusException;
 import com.zincycorporation.dto.CustomerLatestOnboardingResponse;
 import com.zincycorporation.dto.OnboardingRequestDto;
 import com.zincycorporation.entity.OnboardingRequest;
+import com.zincycorporation.entity.Users;
 import com.zincycorporation.enums.OnboardingNextStep;
 import com.zincycorporation.enums.OnboardingStatus;
 import com.zincycorporation.repository.OnboardingRequestRepository;
+import com.zincycorporation.security.CurrentUserService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -23,25 +25,15 @@ import lombok.RequiredArgsConstructor;
 public class OnboardingRequestService {
 
         private final OnboardingRequestRepository repository;
+        private final CurrentUserService currentUserService;
+        private final OnboardingAccessService onboardingAccessService;
 
         @Transactional
         public OnboardingRequest submit(
                         OnboardingRequestDto dto) {
                 String formMobile = normalizeMobile(dto.getMobile());
-
-                String loggedInUserMobile = normalizeMobile(dto.getUserMobile());
-
-                if (loggedInUserMobile == null ||
-                                loggedInUserMobile.isBlank()) {
-                        loggedInUserMobile = formMobile;
-                }
-
-                if (loggedInUserMobile == null ||
-                                loggedInUserMobile.isBlank()) {
-                        throw new ResponseStatusException(
-                                        HttpStatus.BAD_REQUEST,
-                                        "User mobile is required");
-                }
+                Users currentUser = currentUserService.requireUser();
+                String loggedInUserMobile = currentUser.getMobile();
 
                 OnboardingRequest request = OnboardingRequest.builder()
                                 .businessName(
@@ -123,16 +115,10 @@ public class OnboardingRequestService {
         }
 
         @Transactional(readOnly = true)
-        public List<CustomerLatestOnboardingResponse> getCustomerRequests(String userMobile) {
-
-                String normalizedMobile = normalizeMobile(userMobile);
-
-                if (normalizedMobile == null ||
-                                normalizedMobile.isBlank()) {
-                        throw new ResponseStatusException(
-                                        HttpStatus.BAD_REQUEST,
-                                        "User mobile is required");
-                }
+        public List<CustomerLatestOnboardingResponse> getCustomerRequests() {
+                String normalizedMobile = currentUserService
+                                .requireUser()
+                                .getMobile();
 
                 return repository
                                 .findByUserMobileOrderByCreatedAtDesc(
@@ -144,9 +130,8 @@ public class OnboardingRequestService {
 
         @Transactional(readOnly = true)
         public CustomerLatestOnboardingResponse getCustomerRequestProgress(Long id) {
-
                 return toCustomerResponse(
-                                findRequest(id));
+                                onboardingAccessService.requireOwned(id));
         }
 
         private CustomerLatestOnboardingResponse toCustomerResponse(

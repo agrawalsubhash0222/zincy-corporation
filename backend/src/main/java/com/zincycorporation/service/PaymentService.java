@@ -26,7 +26,6 @@ import com.zincycorporation.entity.ServerSetup;
 import com.zincycorporation.enums.PaymentMethod;
 import com.zincycorporation.enums.PaymentStatus;
 import com.zincycorporation.repository.MaintenanceSetupRepository;
-import com.zincycorporation.repository.OnboardingRequestRepository;
 import com.zincycorporation.repository.PaymentTransactionRepository;
 import com.zincycorporation.repository.ServerSetupRepository;
 
@@ -40,7 +39,7 @@ public class PaymentService {
 
     private final RazorpayClient razorpayClient;
     private final PaymentTransactionRepository paymentRepository;
-    private final OnboardingRequestRepository onboardingRepository;
+    private final OnboardingAccessService onboardingAccessService;
     private final ServerSetupRepository serverSetupRepository;
     private final MaintenanceSetupRepository maintenanceSetupRepository;
 
@@ -55,11 +54,8 @@ public class PaymentService {
             CreatePaymentOrderRequest request) throws Exception {
         validateCreateRequest(request);
 
-        OnboardingRequest onboarding = onboardingRepository
-                .findById(request.getOnboardingRequestId())
-                .orElseThrow(() -> new RuntimeException(
-                        "Onboarding request not found: "
-                                + request.getOnboardingRequestId()));
+        OnboardingRequest onboarding = onboardingAccessService
+                .requireOwned(request.getOnboardingRequestId());
 
         BigDecimal payableAmount = calculatePayableAmount(request.getOnboardingRequestId());
 
@@ -127,6 +123,9 @@ public class PaymentService {
                 .findById(request.getPaymentRecordId())
                 .orElseThrow(() -> new RuntimeException(
                         "Payment record not found."));
+
+        onboardingAccessService.requireOwned(
+                payment.getOnboardingRequestId());
 
         if (!payment.getRazorpayOrderId()
                 .equals(request.getRazorpayOrderId())) {
