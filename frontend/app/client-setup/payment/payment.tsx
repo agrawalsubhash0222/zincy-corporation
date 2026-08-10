@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as WebBrowser from 'expo-web-browser';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -11,13 +12,19 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import RazorpayCheckout from 'react-native-razorpay';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { API_BASE_URL } from '@/services/api';
+import {
+    createPaymentOrder,
+    getPaymentStatus,
+    paymentErrorMessage,
+    verifyRazorpayPayment,
+} from '@/services/paymentService';
+import {
+    openRazorpayCardCheckout,
+    RazorpaySuccess,
+} from '@/utils/razorpayWeb';
 
-// Keeps the layout from stretching edge-to-edge on wide
-// browser windows. Mobile/native is untouched.
 const WEB_CONTENT_MAX_WIDTH = 520;
 const isWeb = Platform.OS === 'web';
 const webConstrained = isWeb
@@ -28,53 +35,34 @@ const webConstrained = isWeb
     }
     : {};
 
-type PaymentMethod = 'PHONEPE' | 'GOOGLE_PAY' | 'NET_BANKING';
-
-type CreateOrderResponse = {
-    paymentRecordId: number;
-    keyId: string;
-    orderId: string;
-    amountPaise: number;
-    amount: number;
-    currency: string;
-    businessName: string;
-    description: string;
-};
-
-type RazorpaySuccess = {
-    razorpay_payment_id: string;
-    razorpay_order_id: string;
-    razorpay_signature: string;
-};
-
-type ApiError = {
-    message?: string;
-    error?: string;
-};
+type ActivePaymentMethod = 'PHONEPE' | 'CARD';
+type PaymentChoice = ActivePaymentMethod | 'GOOGLE_PAY';
 
 const OPTIONS: Array<{
-    value: PaymentMethod;
+    value: PaymentChoice;
     title: string;
     subtitle: string;
     icon: keyof typeof Ionicons.glyphMap;
+    disabled?: boolean;
 }> = [
     {
         value: 'PHONEPE',
         title: 'PhonePe',
-        subtitle: 'Pay securely using UPI',
+        subtitle: 'PhonePe Standard Checkout · UPI only',
         icon: 'phone-portrait-outline',
+    },
+    {
+        value: 'CARD',
+        title: 'Credit / Debit Card',
+        subtitle: 'Secure card checkout powered by Razorpay',
+        icon: 'card-outline',
     },
     {
         value: 'GOOGLE_PAY',
         title: 'Google Pay',
-        subtitle: 'Pay securely using UPI',
+        subtitle: 'Coming soon',
         icon: 'logo-google',
-    },
-    {
-        value: 'NET_BANKING',
-        title: 'Net Banking',
-        subtitle: 'Choose your bank at checkout',
-        icon: 'business-outline',
+        disabled: true,
     },
 ];
 
@@ -82,18 +70,19 @@ function first(value?: string | string[]) {
     return Array.isArray(value) ? value[0] : value;
 }
 
-async function parse<T>(response: Response): Promise<T> {
-    const text = await response.text();
-    const body = text ? JSON.parse(text) : null;
+function createIdempotencyKey(): string {
+    const cryptoValue = globalThis.crypto as
+        | { randomUUID?: () => string }
+        | undefined;
+    const random = cryptoValue?.randomUUID
+        ? cryptoValue.randomUUID().replace(/-/g, '')
+        : `${Date.now()}${Math.random().toString(36).slice(2)}`;
 
-    if (!response.ok) {
-        const error = body as ApiError | null;
-        throw new Error(
-            error?.message || error?.error || 'Payment request failed.'
-        );
-    }
+    return `pay_${random}`.slice(0, 64);
+}
 
-    return body as T;
+function wait(milliseconds: number) {
+    return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 export default function PaymentScreen() {
@@ -106,9 +95,56 @@ export default function PaymentScreen() {
         return Number.isInteger(value) && value > 0 ? value : null;
     }, [params.onboardingRequestId]);
 
+    const idempotencyKeys = useRef<Partial<Record<ActivePaymentMethod, string>>>({});
     const [selectedMethod, setSelectedMethod] =
-        useState<PaymentMethod>('PHONEPE');
+        useState<ActivePaymentMethod>('PHONEPE');
     const [processing, setProcessing] = useState(false);
+
+    const goToStatus = (paymentRecordId: number) => {
+        router.replace({
+            pathname: '/client-setup/payment/payment-success',
+            params: { paymentRecordId: String(paymentRecordId) },
+        });
+    };
+
+    const openCardCheckout = async (
+        order: Awaited<ReturnType<typeof createPaymentOrder>>
+    ): Promise<RazorpaySuccess | null> => {
+        if (!order.publicKey || !order.providerOrderId) {
+            throw new Error('Card checkout information is incomplete.');
+        }
+
+        if (Platform.OS === 'web') {
+            return openRazorpayCardCheckout({
+                key: order.publicKey,
+                orderId: order.providerOrderId,
+                amountPaise: order.amountPaise,
+                currency: order.currency,
+                businessName: order.businessName,
+                description: order.description,
+            });
+        }
+
+        const module = await import('react-native-razorpay');
+        return module.default.open({
+            key: order.publicKey,
+            order_id: order.providerOrderId,
+            amount: order.amountPaise,
+            currency: order.currency,
+            name: order.businessName,
+            description: order.description,
+            theme: { color: '#0EA5E9' },
+            retry: { enabled: true, max_count: 2 },
+            method: {
+                card: true,
+                upi: false,
+                netbanking: false,
+                wallet: false,
+                emi: false,
+                paylater: false,
+            },
+        }) as Promise<RazorpaySuccess>;
+    };
 
     const startPayment = async () => {
         if (!onboardingRequestId || processing) {
@@ -117,79 +153,73 @@ export default function PaymentScreen() {
 
         try {
             setProcessing(true);
+            const idempotencyKey =
+                idempotencyKeys.current[selectedMethod] ||
+                createIdempotencyKey();
+            idempotencyKeys.current[selectedMethod] = idempotencyKey;
 
-            const orderResponse = await fetch(
-                `${API_BASE_URL}/payments/orders`,
-                {
-                    method: 'POST',
-                    credentials: 'include',
-                    headers: {
-                        Accept: 'application/json',
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        onboardingRequestId,
-                        preferredMethod: selectedMethod,
-                    }),
-                }
+            const order = await createPaymentOrder(
+                onboardingRequestId,
+                selectedMethod,
+                idempotencyKey
             );
 
-            const order = await parse<CreateOrderResponse>(orderResponse);
-
-            const result = (await RazorpayCheckout.open({
-                key: order.keyId,
-                amount: order.amountPaise,
-                currency: order.currency,
-                name: order.businessName,
-                description: order.description,
-                order_id: order.orderId,
-                theme: { color: '#0EA5E9' },
-                retry: { enabled: true, max_count: 2 },
-                method: {
-                    upi: selectedMethod !== 'NET_BANKING',
-                    netbanking: selectedMethod === 'NET_BANKING',
-                    card: false,
-                    wallet: false,
-                    emi: false,
-                    paylater: false,
-                },
-            })) as RazorpaySuccess;
-
-            const verifyResponse = await fetch(
-                `${API_BASE_URL}/payments/verify`,
-                {
-                    method: 'POST',
-                    credentials: 'include',
-                    headers: {
-                        Accept: 'application/json',
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        paymentRecordId: order.paymentRecordId,
-                        razorpayOrderId: result.razorpay_order_id,
-                        razorpayPaymentId: result.razorpay_payment_id,
-                        razorpaySignature: result.razorpay_signature,
-                    }),
+            if (selectedMethod === 'PHONEPE') {
+                if (!order.checkoutUrl) {
+                    throw new Error('PhonePe checkout URL is unavailable.');
                 }
-            );
 
-            await parse(verifyResponse);
+                if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                    window.location.assign(order.checkoutUrl);
+                    return;
+                }
 
-            router.replace({
-                pathname: '/client-setup/payment/payment-success',
-                params: {
-                    onboardingRequestId: String(onboardingRequestId),
-                    paymentId: result.razorpay_payment_id,
-                    amount: String(order.amount),
-                },
+                await WebBrowser.openBrowserAsync(order.checkoutUrl);
+                goToStatus(order.paymentRecordId);
+                return;
+            }
+
+            const result = await openCardCheckout(order);
+            if (!result) {
+                // Recover securely when Razorpay closes its web modal without
+                // invoking the success handler. The backend asks Razorpay for
+                // payments linked to our stored provider order and validates
+                // order, amount, currency and payment method.
+                for (let attempt = 0; attempt < 4; attempt += 1) {
+                    const reconciled = await getPaymentStatus(
+                        order.paymentRecordId,
+                        true
+                    );
+
+                    if (reconciled.providerPaymentId) {
+                        goToStatus(reconciled.id);
+                        return;
+                    }
+
+                    if (attempt < 3) {
+                        await wait(750);
+                    }
+                }
+
+                throw new Error(
+                    'Card checkout was closed before payment confirmation.'
+                );
+            }
+
+            const verified = await verifyRazorpayPayment({
+                paymentRecordId: order.paymentRecordId,
+                razorpayOrderId: result.razorpay_order_id,
+                razorpayPaymentId: result.razorpay_payment_id,
+                razorpaySignature: result.razorpay_signature,
             });
-        } catch (error: any) {
-            const message =
-                error?.description ||
-                error?.message ||
-                'Payment was not completed.';
 
-            Alert.alert('Payment not completed', message);
+            goToStatus(verified.id);
+        } catch (error) {
+            delete idempotencyKeys.current[selectedMethod];
+            Alert.alert(
+                'Payment not completed',
+                paymentErrorMessage(error, 'Payment was not completed.')
+            );
         } finally {
             setProcessing(false);
         }
@@ -209,7 +239,7 @@ export default function PaymentScreen() {
                     <View style={styles.headerText}>
                         <Text style={styles.title}>Choose payment method</Text>
                         <Text style={styles.subtitle}>
-                            Secure payment powered by Razorpay
+                            Choose PhonePe UPI or card payment
                         </Text>
                     </View>
                 </View>
@@ -226,8 +256,9 @@ export default function PaymentScreen() {
                         color="#0284C7"
                     />
                     <Text style={styles.secureText}>
-                        Payment details are handled securely by the payment
-                        gateway. We do not store UPI PINs or bank credentials.
+                        Payment details are entered only on the selected
+                        gateway. Zincy never stores card numbers, CVV, OTP, or
+                        UPI PIN.
                     </Text>
                 </View>
 
@@ -239,11 +270,17 @@ export default function PaymentScreen() {
                     return (
                         <TouchableOpacity
                             key={option.value}
+                            disabled={option.disabled || processing}
                             activeOpacity={0.8}
-                            onPress={() => setSelectedMethod(option.value)}
+                            onPress={() =>
+                                setSelectedMethod(
+                                    option.value as ActivePaymentMethod
+                                )
+                            }
                             style={[
                                 styles.option,
                                 selected && styles.optionSelected,
+                                option.disabled && styles.optionDisabled,
                             ]}
                         >
                             <View
@@ -260,23 +297,32 @@ export default function PaymentScreen() {
                             </View>
 
                             <View style={styles.optionText}>
-                                <Text style={styles.optionTitle}>
-                                    {option.title}
-                                </Text>
+                                <View style={styles.optionTitleRow}>
+                                    <Text style={styles.optionTitle}>
+                                        {option.title}
+                                    </Text>
+                                    {option.disabled && (
+                                        <Text style={styles.comingSoonBadge}>
+                                            COMING SOON
+                                        </Text>
+                                    )}
+                                </View>
                                 <Text style={styles.optionSubtitle}>
                                     {option.subtitle}
                                 </Text>
                             </View>
 
-                            <Ionicons
-                                name={
-                                    selected
-                                        ? 'radio-button-on'
-                                        : 'radio-button-off'
-                                }
-                                size={22}
-                                color={selected ? '#0EA5E9' : '#94A3B8'}
-                            />
+                            {!option.disabled && (
+                                <Ionicons
+                                    name={
+                                        selected
+                                            ? 'radio-button-on'
+                                            : 'radio-button-off'
+                                    }
+                                    size={22}
+                                    color={selected ? '#0EA5E9' : '#94A3B8'}
+                                />
+                            )}
                         </TouchableOpacity>
                     );
                 })}
@@ -288,8 +334,8 @@ export default function PaymentScreen() {
                         color="#B45309"
                     />
                     <Text style={styles.noteText}>
-                        For PhonePe or Google Pay, the selected UPI app must be
-                        installed and available on the device.
+                        PhonePe opens its UPI checkout. Card Payment opens
+                        Razorpay with only credit and debit card options.
                     </Text>
                 </View>
             </ScrollView>
@@ -302,7 +348,8 @@ export default function PaymentScreen() {
                         onPress={startPayment}
                         style={[
                             styles.payButton,
-                            processing && styles.payButtonDisabled,
+                            (processing || !onboardingRequestId) &&
+                                styles.payButtonDisabled,
                         ]}
                     >
                         {processing ? (
@@ -357,11 +404,7 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#64748B',
     },
-    content: {
-        padding: 18,
-        paddingBottom: 120,
-        ...webConstrained,
-    },
+    content: { padding: 18, paddingBottom: 120, ...webConstrained },
     secureBox: {
         padding: 14,
         borderRadius: 16,
@@ -398,10 +441,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
     },
-    optionSelected: {
-        borderColor: '#38BDF8',
-        backgroundColor: '#F0F9FF',
-    },
+    optionSelected: { borderColor: '#38BDF8', backgroundColor: '#F0F9FF' },
+    optionDisabled: { opacity: 0.58, backgroundColor: '#F8FAFC' },
     optionIcon: {
         width: 42,
         height: 42,
@@ -413,11 +454,24 @@ const styles = StyleSheet.create({
     },
     optionIconSelected: { backgroundColor: '#E0F2FE' },
     optionText: { flex: 1 },
+    optionTitleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
     optionTitle: {
         fontSize: 14,
         lineHeight: 18,
         fontWeight: '900',
         color: '#0F172A',
+    },
+    comingSoonBadge: {
+        marginLeft: 8,
+        paddingHorizontal: 7,
+        paddingVertical: 3,
+        borderRadius: 8,
+        overflow: 'hidden',
+        backgroundColor: '#E2E8F0',
+        color: '#475569',
+        fontSize: 8,
+        lineHeight: 10,
+        fontWeight: '900',
     },
     optionSubtitle: {
         marginTop: 3,
@@ -452,10 +506,7 @@ const styles = StyleSheet.create({
         borderTopColor: '#E2E8F0',
         width: '100%',
     },
-    footerInner: {
-        padding: 18,
-        ...webConstrained,
-    },
+    footerInner: { padding: 18, ...webConstrained },
     payButton: {
         minHeight: 54,
         borderRadius: 16,
@@ -464,7 +515,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    payButtonDisabled: { opacity: 0.65 },
+    payButtonDisabled: { opacity: 0.55 },
     payButtonText: {
         marginLeft: 9,
         fontSize: 15,

@@ -37,7 +37,7 @@ public class ApiAuthInterceptor implements HandlerInterceptor {
         }
 
         if (isUnsafeMethod(request)
-                && !isPhonePeWebhook(request)
+                && !isPaymentWebhook(request)
                 && !trustedOriginService.isTrusted(request)) {
             writeError(
                     response,
@@ -82,7 +82,8 @@ public class ApiAuthInterceptor implements HandlerInterceptor {
                 || path.equals("/api/auth/send-otp-twilio")
                 || path.equals("/api/auth/verify-otp-twilio")
                 || path.equals("/api/auth/logout")
-                || path.equals("/api/payments/phonepe/webhook")) {
+                || path.equals("/api/payments/phonepe/webhook")
+                || path.equals("/api/payments/razorpay/webhook")) {
             return true;
         }
 
@@ -96,9 +97,10 @@ public class ApiAuthInterceptor implements HandlerInterceptor {
                 && !HttpMethod.OPTIONS.matches(request.getMethod());
     }
 
-    private boolean isPhonePeWebhook(HttpServletRequest request) {
-        return request.getRequestURI()
-                .equals("/api/payments/phonepe/webhook");
+    private boolean isPaymentWebhook(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        return path.equals("/api/payments/phonepe/webhook")
+                || path.equals("/api/payments/razorpay/webhook");
     }
 
     private boolean isAdminEndpoint(String path) {

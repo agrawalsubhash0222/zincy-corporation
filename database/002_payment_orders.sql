@@ -1,0 +1,37 @@
+CREATE TABLE IF NOT EXISTS payment_orders (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    onboarding_request_id BIGINT NOT NULL,
+    created_by_user_id BIGINT NOT NULL,
+    provider VARCHAR(20) NOT NULL,
+    payment_method VARCHAR(20) NOT NULL,
+    status VARCHAR(30) NOT NULL,
+    amount DECIMAL(12, 2) NOT NULL,
+    amount_paise BIGINT NOT NULL,
+    currency CHAR(3) NOT NULL,
+    merchant_order_id VARCHAR(63) NOT NULL,
+    provider_order_id VARCHAR(120) NULL,
+    provider_payment_id VARCHAR(120) NULL,
+    provider_state VARCHAR(50) NULL,
+    checkout_url VARCHAR(2048) NULL,
+    idempotency_key VARCHAR(64) NOT NULL,
+    failure_code VARCHAR(100) NULL,
+    failure_reason VARCHAR(500) NULL,
+    expires_at DATETIME(6) NULL,
+    paid_at DATETIME(6) NULL,
+    last_webhook_event VARCHAR(100) NULL,
+    last_webhook_at DATETIME(6) NULL,
+    version BIGINT NOT NULL DEFAULT 0,
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
+        ON UPDATE CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (id),
+    CONSTRAINT uk_payment_merchant_order UNIQUE (merchant_order_id),
+    CONSTRAINT uk_payment_idempotency UNIQUE (idempotency_key),
+    CONSTRAINT uk_payment_provider_order
+        UNIQUE (provider, provider_order_id),
+    CONSTRAINT uk_payment_provider_payment
+        UNIQUE (provider, provider_payment_id),
+    INDEX idx_payment_onboarding (onboarding_request_id),
+    INDEX idx_payment_created_by (created_by_user_id),
+    INDEX idx_payment_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

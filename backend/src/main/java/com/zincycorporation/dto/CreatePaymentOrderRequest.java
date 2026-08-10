@@ -10,4 +10,5 @@ import lombok.Setter;
 public class CreatePaymentOrderRequest {
     private Long onboardingRequestId;
     private PaymentMethod preferredMethod;
+    private String idempotencyKey;
 }
