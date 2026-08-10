@@ -12,8 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
     getPaymentStatus,
-    paymentErrorMessage,
     PaymentResponse,
+    paymentErrorMessage,
 } from '@/services/paymentService';
 
 const POLL_ATTEMPTS = 8;
@@ -96,29 +96,48 @@ export default function PaymentSuccessScreen() {
         };
     }, [checkPayment]);
 
+    const refundCompleted = payment?.refundStatus === 'COMPLETED';
+    const refundNeedsAttention = payment?.refundStatus === 'FAILED' ||
+        payment?.refundStatus === 'REVIEW_REQUIRED';
+    const refundPending = payment?.refundInProgress === true;
     const successful = payment?.successful === true;
-    const pending = payment != null && !payment.terminal;
-    const iconName = successful
+    const pending = payment != null && !payment.terminal && !refundPending;
+    const positive = successful || refundCompleted;
+    const warning = pending || refundPending;
+    const iconName = positive
         ? 'checkmark-circle'
-        : pending
-            ? 'time'
-            : 'alert-circle';
-    const iconColor = successful ? '#16A34A' : pending ? '#D97706' : '#DC2626';
-    const iconBackground = successful
+        : warning
+          ? 'time'
+          : 'alert-circle';
+    const iconColor = positive ? '#16A34A' : warning ? '#D97706' : '#DC2626';
+    const iconBackground = positive
         ? '#DCFCE7'
-        : pending
-            ? '#FEF3C7'
-            : '#FEE2E2';
-    const title = successful
-        ? 'Payment successful'
-        : pending
-            ? 'Payment processing'
-            : 'Payment not completed';
-    const message = successful
-        ? 'Your payment was verified directly with the payment gateway.'
-        : pending
-            ? 'The gateway has not confirmed the final status yet. You can check again safely.'
-            : payment?.failureReason || error || 'The payment could not be verified.';
+        : warning
+          ? '#FEF3C7'
+          : '#FEE2E2';
+    const title = refundCompleted
+        ? 'Refund completed'
+        : refundPending
+          ? 'Refund processing'
+          : refundNeedsAttention
+            ? 'Refund needs attention'
+            : successful
+              ? 'Payment successful'
+              : pending
+                ? 'Payment processing'
+                : 'Payment not completed';
+    const message = refundCompleted
+        ? 'The payment gateway confirmed that the full amount was refunded.'
+        : refundPending
+          ? 'Your full refund was requested and is being confirmed with the payment gateway.'
+          : refundNeedsAttention
+            ? payment?.refundFailureReason ||
+              'The refund requires support review. Do not make another payment.'
+            : successful
+              ? 'Your payment was verified directly with the payment gateway.'
+              : pending
+                ? 'The gateway has not confirmed the final status yet. You can check again safely.'
+                : payment?.failureReason || error || 'The payment could not be verified.';
 
     if (loading && !payment) {
         return (
@@ -170,13 +189,16 @@ export default function PaymentSuccessScreen() {
                         <View style={styles.statusRow}>
                             <Text style={styles.statusLabel}>STATUS</Text>
                             <Text style={[styles.statusValue, { color: iconColor }]}>
-                                {payment.status.replace(/_/g, ' ')}
+                                {(payment.refundStatus
+                                    ? `REFUND ${payment.refundStatus}`
+                                    : payment.status
+                                ).replace(/_/g, ' ')}
                             </Text>
                         </View>
                     </View>
                 )}
 
-                {(pending || Boolean(error)) && (
+                {(pending || refundPending || error) && (
                     <TouchableOpacity
                         style={styles.secondaryButton}
                         onPress={() => void checkPayment(false)}

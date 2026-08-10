@@ -49,6 +49,14 @@ public class PhonePeClient {
             String failureReason) {
     }
 
+    public record RefundResult(
+            String refundId,
+            String state,
+            long amountPaise,
+            String failureCode,
+            String failureReason) {
+    }
+
     private record AccessToken(String value, long expiresAtEpochSeconds) {
     }
 
@@ -246,6 +254,90 @@ public class PhonePeClient {
                     "PhonePe payment service could not be reached",
                     exception);
         }
+    }
+
+    public RefundResult createRefund(
+            String merchantRefundId,
+            String originalMerchantOrderId,
+            long amountPaise) {
+        ensureConfigured();
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("merchantRefundId", merchantRefundId);
+        body.put("originalMerchantOrderId", originalMerchantOrderId);
+        body.put("amount", amountPaise);
+
+        try {
+            String responseBody = restClient.post()
+                    .uri(apiBaseUrl + "/payments/v2/refund")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header(
+                            HttpHeaders.AUTHORIZATION,
+                            "O-Bearer " + token())
+                    .body(body)
+                    .retrieve()
+                    .body(String.class);
+            return parseRefund(responseBody);
+        } catch (RestClientResponseException exception) {
+            throw gatewayFailure(
+                    "PhonePe rejected the refund request",
+                    exception);
+        } catch (RestClientException exception) {
+            throw gatewayFailure(
+                    "PhonePe refund service could not be reached",
+                    exception);
+        }
+    }
+
+    public RefundResult getRefundStatus(String merchantRefundId) {
+        ensureConfigured();
+
+        try {
+            String responseBody = restClient.get()
+                    .uri(apiBaseUrl
+                            + "/payments/v2/refund/"
+                            + merchantRefundId
+                            + "/status")
+                    .accept(MediaType.APPLICATION_JSON)
+                    .header(
+                            HttpHeaders.AUTHORIZATION,
+                            "O-Bearer " + token())
+                    .retrieve()
+                    .body(String.class);
+            return parseRefund(responseBody);
+        } catch (RestClientResponseException exception) {
+            throw gatewayFailure(
+                    "PhonePe refund status could not be verified",
+                    exception);
+        } catch (RestClientException exception) {
+            throw gatewayFailure(
+                    "PhonePe refund service could not be reached",
+                    exception);
+        }
+    }
+
+    private RefundResult parseRefund(String body) {
+        JsonNode response = parseJson(
+                body,
+                "PhonePe returned an invalid refund response");
+        String refundId = response == null ? null : text(response, "refundId");
+        String state = response == null ? null : text(response, "state");
+        if (refundId == null || state == null) {
+            throw gatewayFailure(
+                    "PhonePe returned an incomplete refund response");
+        }
+
+        JsonNode errorContext = response.path("errorContext");
+        return new RefundResult(
+                refundId,
+                state,
+                response.path("amount").asLong(0),
+                firstNonBlank(
+                        text(errorContext, "errorCode"),
+                        text(response, "errorCode")),
+                firstNonBlank(
+                        text(errorContext, "errorDescription"),
+                        text(errorContext, "detailedErrorDescription")));
     }
 
     public boolean verifyWebhookAuthorization(String authorization) {
