@@ -66,4 +66,15 @@ public class PaymentController {
             @RequestBody byte[] rawBody) {
         paymentService.handleRazorpayWebhook(signature, eventId, rawBody);
     }
+
+//     @PostMapping("/failure")
+//     public ResponseEntity<Map<String, String>> handlePaymentFailure(@RequestBody PaymentFailureRequest request) {
+//     paymentService.recordPaymentFailure(request);
+
+//     Map<String, String> response = new HashMap<>();
+//     response.put("status", "SUCCESS");
+//     response.put("message", "Payment failure recorded successfully");
+
+//     return ResponseEntity.ok(response);
+// }
 }

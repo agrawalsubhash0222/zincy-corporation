@@ -2,6 +2,19 @@ import api from '@/services/api';
 
 export type PaymentMethod = 'PHONEPE' | 'CARD' | 'GOOGLE_PAY';
 export type PaymentProvider = 'PHONEPE' | 'RAZORPAY';
+export type RefundStatus =
+    | 'REQUESTED'
+    | 'PENDING'
+    | 'COMPLETED'
+    | 'FAILED'
+    | 'REVIEW_REQUIRED';
+export type RefundReason =
+    | 'CUSTOMER_CANCELLATION'
+    | 'SERVICE_CANCELLATION'
+    | 'DUPLICATE_CAPTURE'
+    | 'FORBIDDEN_PAYMENT_METHOD'
+    | 'LATE_CAPTURE'
+    | 'OTHER';
 export type PaymentStatus =
     | 'CREATED'
     | 'PENDING'
@@ -45,6 +58,36 @@ export type PaymentResponse = {
     expiresAt?: string;
     terminal: boolean;
     successful: boolean;
+    refundId?: number;
+    refundStatus?: RefundStatus;
+    refundReason?: RefundReason;
+    refundAmount?: number;
+    refundFailureReason?: string;
+    automaticRefund: boolean;
+    refundInProgress: boolean;
+    refundCompletedAt?: string;
+};
+
+export type RefundResponse = {
+    id: number;
+    paymentOrderId: number;
+    onboardingRequestId: number;
+    provider: PaymentProvider;
+    reason: RefundReason;
+    status: RefundStatus;
+    amount: number;
+    currency: string;
+    merchantRefundId: string;
+    providerRefundId?: string;
+    providerState?: string;
+    failureCode?: string;
+    failureReason?: string;
+    reconcileAttempts: number;
+    nextReconcileAt?: string;
+    lastReconciledAt?: string;
+    automatic: boolean;
+    createdAt: string;
+    completedAt?: string;
 };
 
 export async function createPaymentOrder(

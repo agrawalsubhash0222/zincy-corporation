@@ -50,6 +50,9 @@ class PaymentServiceDuplicatePaymentTest {
     private PhonePeClient phonePeClient;
 
     @Mock
+    private PaymentRefundService paymentRefundService;
+
+    @Mock
     private PaymentTransactionRepository paymentRepository;
 
     @Mock
@@ -73,6 +76,7 @@ class PaymentServiceDuplicatePaymentTest {
         paymentService = new PaymentService(
                 razorpayClient,
                 phonePeClient,
+                paymentRefundService,
                 paymentRepository,
                 onboardingAccessService,
                 currentUserService,
