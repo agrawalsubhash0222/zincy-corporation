@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
+    Modal,
     Platform,
     ScrollView,
     StyleSheet,
@@ -15,6 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
+    abandonPaymentAttempt,
     createPaymentOrder,
     getPaymentStatus,
     paymentErrorMessage,
@@ -37,6 +39,11 @@ const webConstrained = isWeb
 
 type ActivePaymentMethod = 'PHONEPE' | 'CARD';
 type PaymentChoice = ActivePaymentMethod | 'GOOGLE_PAY';
+type ActiveAttempt = {
+    paymentRecordId: number;
+    method: ActivePaymentMethod;
+    checkoutUrl?: string;
+};
 
 const OPTIONS: Array<{
     value: PaymentChoice;
@@ -99,12 +106,191 @@ export default function PaymentScreen() {
     const [selectedMethod, setSelectedMethod] =
         useState<ActivePaymentMethod>('PHONEPE');
     const [processing, setProcessing] = useState(false);
+    const [restoringAttempt, setRestoringAttempt] = useState(false);
+    const [activeAttempt, setActiveAttempt] = useState<ActiveAttempt | null>(null);
+    const [showChangeMethodConfirm, setShowChangeMethodConfirm] =
+        useState(false);
+
+    const storageKey = onboardingRequestId
+        ? `zincy_active_payment_${onboardingRequestId}`
+        : null;
+
+    const rememberAttempt = (attempt: ActiveAttempt | null) => {
+        setActiveAttempt(attempt);
+        if (!isWeb || !storageKey || typeof window === 'undefined') return;
+        if (attempt) {
+            window.sessionStorage.setItem(storageKey, JSON.stringify(attempt));
+        } else {
+            window.sessionStorage.removeItem(storageKey);
+        }
+    };
+
+    useEffect(() => {
+        if (!isWeb || !storageKey || typeof window === 'undefined') return;
+
+        let cancelled = false;
+        let requestInFlight = false;
+
+        const reconcileStoredAttempt = async () => {
+            if (requestInFlight) return;
+
+            const stored = window.sessionStorage.getItem(storageKey);
+            if (!stored) {
+                if (!cancelled) {
+                    setActiveAttempt(null);
+                    setRestoringAttempt(false);
+                }
+                return;
+            }
+
+            let attempt: ActiveAttempt;
+            try {
+                attempt = JSON.parse(stored) as ActiveAttempt;
+                if (
+                    !Number.isInteger(attempt.paymentRecordId) ||
+                    attempt.paymentRecordId <= 0 ||
+                    (attempt.method !== 'PHONEPE' &&
+                        attempt.method !== 'CARD')
+                ) {
+                    throw new Error('Invalid stored payment attempt');
+                }
+            } catch {
+                window.sessionStorage.removeItem(storageKey);
+                if (!cancelled) {
+                    setActiveAttempt(null);
+                    setRestoringAttempt(false);
+                }
+                return;
+            }
+
+            requestInFlight = true;
+            if (!cancelled) setRestoringAttempt(true);
+
+            try {
+                const status = await getPaymentStatus(
+                    attempt.paymentRecordId,
+                    true
+                );
+                if (cancelled) return;
+
+                if (status.terminal) {
+                    window.sessionStorage.removeItem(storageKey);
+                    setActiveAttempt(null);
+                    idempotencyKeys.current = {};
+                    return;
+                }
+
+                setActiveAttempt(attempt);
+                setSelectedMethod(attempt.method);
+            } catch {
+                if (cancelled) return;
+
+                // Do not release an unverified attempt on a network failure;
+                // that could permit two simultaneous gateway payments.
+                setActiveAttempt(attempt);
+                setSelectedMethod(attempt.method);
+            } finally {
+                requestInFlight = false;
+                if (!cancelled) setRestoringAttempt(false);
+            }
+        };
+
+        void reconcileStoredAttempt();
+
+        // Back/forward cache can restore this screen without remounting React.
+        const handlePageShow = () => void reconcileStoredAttempt();
+        const handleFocus = () => void reconcileStoredAttempt();
+        window.addEventListener('pageshow', handlePageShow);
+        window.addEventListener('focus', handleFocus);
+
+        return () => {
+            cancelled = true;
+            window.removeEventListener('pageshow', handlePageShow);
+            window.removeEventListener('focus', handleFocus);
+        };
+    }, [storageKey]);
 
     const goToStatus = (paymentRecordId: number) => {
+        rememberAttempt(null);
         router.replace({
             pathname: '/client-setup/payment/payment-success',
             params: { paymentRecordId: String(paymentRecordId) },
         });
+    };
+
+    const cancelActiveAttempt = async () => {
+        if (!activeAttempt || processing) return;
+        try {
+            setProcessing(true);
+            const result = await abandonPaymentAttempt(
+                activeAttempt.paymentRecordId
+            );
+            if (result.successful || result.status === 'REVIEW_REQUIRED') {
+                goToStatus(result.id);
+                return;
+            }
+            rememberAttempt(null);
+            idempotencyKeys.current = {};
+            setShowChangeMethodConfirm(false);
+        } catch (error) {
+            Alert.alert(
+                'Unable to switch safely',
+                paymentErrorMessage(
+                    error,
+                    'The gateway status could not be checked. Please try again.'
+                )
+            );
+        } finally {
+            setProcessing(false);
+        }
+    };
+
+    const resumeActiveAttempt = async () => {
+        if (!activeAttempt || processing) return;
+
+        try {
+            setProcessing(true);
+            const status = await getPaymentStatus(
+                activeAttempt.paymentRecordId,
+                true
+            );
+            if (status.terminal) {
+                goToStatus(status.id);
+                return;
+            }
+
+            if (
+                activeAttempt.method === 'PHONEPE' &&
+                activeAttempt.checkoutUrl
+            ) {
+                if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                    window.location.assign(activeAttempt.checkoutUrl);
+                    return;
+                }
+                await WebBrowser.openBrowserAsync(activeAttempt.checkoutUrl);
+                const refreshed = await getPaymentStatus(
+                    activeAttempt.paymentRecordId,
+                    true
+                );
+                if (refreshed.terminal) goToStatus(refreshed.id);
+                return;
+            }
+
+            Alert.alert(
+                'Payment still in progress',
+                'The gateway has not confirmed a final status yet. You can check again or safely change the payment method.'
+            );
+        } catch (error) {
+            Alert.alert(
+                'Unable to check payment',
+                paymentErrorMessage(
+                    error,
+                    'The payment status could not be checked. Please try again.'
+                )
+            );
+        } finally {
+            setProcessing(false);
+        }
     };
 
     const openCardCheckout = async (
@@ -134,7 +320,10 @@ export default function PaymentScreen() {
             name: order.businessName,
             description: order.description,
             theme: { color: '#0EA5E9' },
-            retry: { enabled: true, max_count: 2 },
+            // Each retry must create a fresh Zincy payment record and a fresh
+            // Razorpay order. Reusing this order after the backend marks its
+            // record FAILED would make the audit trail ambiguous.
+            retry: { enabled: false },
             method: {
                 card: true,
                 upi: false,
@@ -151,6 +340,8 @@ export default function PaymentScreen() {
             return;
         }
 
+        let activeOrder: Awaited<ReturnType<typeof createPaymentOrder>> | null =
+            null;
         try {
             setProcessing(true);
             const idempotencyKey =
@@ -163,6 +354,15 @@ export default function PaymentScreen() {
                 selectedMethod,
                 idempotencyKey
             );
+            activeOrder = order;
+            rememberAttempt({
+                paymentRecordId: order.paymentRecordId,
+                method: selectedMethod,
+                checkoutUrl:
+                    selectedMethod === 'PHONEPE'
+                        ? order.checkoutUrl
+                        : undefined,
+            });
 
             if (selectedMethod === 'PHONEPE') {
                 if (!order.checkoutUrl) {
@@ -175,7 +375,18 @@ export default function PaymentScreen() {
                 }
 
                 await WebBrowser.openBrowserAsync(order.checkoutUrl);
-                goToStatus(order.paymentRecordId);
+                const status = await getPaymentStatus(
+                    order.paymentRecordId,
+                    true
+                );
+                if (status.terminal) {
+                    goToStatus(status.id);
+                } else {
+                    Alert.alert(
+                        'Payment still pending',
+                        'Complete the PhonePe payment, or cancel this attempt to choose another method.'
+                    );
+                }
                 return;
             }
 
@@ -201,9 +412,16 @@ export default function PaymentScreen() {
                     }
                 }
 
-                throw new Error(
-                    'Card checkout was closed before payment confirmation.'
+                const abandoned = await abandonPaymentAttempt(
+                    order.paymentRecordId
                 );
+                if (abandoned.successful
+                        || abandoned.status === 'REVIEW_REQUIRED') {
+                    goToStatus(abandoned.id);
+                    return;
+                }
+                rememberAttempt(null);
+                throw new Error('Card checkout was cancelled.');
             }
 
             const verified = await verifyRazorpayPayment({
@@ -216,6 +434,27 @@ export default function PaymentScreen() {
             goToStatus(verified.id);
         } catch (error) {
             delete idempotencyKeys.current[selectedMethod];
+
+            // Razorpay's payment.failed event is raised before our webhook may
+            // arrive. Refresh immediately so the backend verifies the failed
+            // attempt with Razorpay, marks it FAILED and releases the unique
+            // active-payment lock. A refresh error must not hide the original
+            // checkout error from the customer.
+            if (selectedMethod === 'CARD' && activeOrder) {
+                try {
+                    const reconciled = await getPaymentStatus(
+                        activeOrder.paymentRecordId,
+                        true
+                    );
+                    if (reconciled.terminal) {
+                        goToStatus(reconciled.id);
+                        return;
+                    }
+                } catch {
+                    // Webhook/scheduled reconciliation remains the fallback.
+                }
+            }
+
             Alert.alert(
                 'Payment not completed',
                 paymentErrorMessage(error, 'Payment was not completed.')
@@ -262,6 +501,39 @@ export default function PaymentScreen() {
                     </Text>
                 </View>
 
+                {activeAttempt && (
+                    <View style={styles.progressCard}>
+                        <View style={styles.progressIcon}>
+                            <Ionicons
+                                name="time-outline"
+                                size={22}
+                                color="#0369A1"
+                            />
+                        </View>
+                        <View style={styles.progressContent}>
+                            <Text style={styles.progressTitle}>
+                                {activeAttempt.method === 'PHONEPE'
+                                    ? 'PhonePe payment in progress'
+                                    : 'Card payment in progress'}
+                            </Text>
+                            <Text style={styles.progressText}>
+                                Complete the current payment, or safely switch
+                                to another method.
+                            </Text>
+                            <TouchableOpacity
+                                disabled={processing}
+                                onPress={() =>
+                                    setShowChangeMethodConfirm(true)
+                                }
+                            >
+                                <Text style={styles.changeMethodText}>
+                                    Change payment method
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                )}
+
                 <Text style={styles.sectionLabel}>PAY USING</Text>
 
                 {OPTIONS.map((option) => {
@@ -270,7 +542,12 @@ export default function PaymentScreen() {
                     return (
                         <TouchableOpacity
                             key={option.value}
-                            disabled={option.disabled || processing}
+                            disabled={
+                                option.disabled ||
+                                processing ||
+                                restoringAttempt ||
+                                Boolean(activeAttempt)
+                            }
                             activeOpacity={0.8}
                             onPress={() =>
                                 setSelectedMethod(
@@ -281,6 +558,9 @@ export default function PaymentScreen() {
                                 styles.option,
                                 selected && styles.optionSelected,
                                 option.disabled && styles.optionDisabled,
+                                activeAttempt &&
+                                    option.value !== activeAttempt.method &&
+                                    styles.optionLocked,
                             ]}
                         >
                             <View
@@ -327,32 +607,29 @@ export default function PaymentScreen() {
                     );
                 })}
 
-                <View style={styles.note}>
-                    <Ionicons
-                        name="information-circle-outline"
-                        size={19}
-                        color="#B45309"
-                    />
-                    <Text style={styles.noteText}>
-                        PhonePe opens its UPI checkout. Card Payment opens
-                        Razorpay with only credit and debit card options.
-                    </Text>
-                </View>
             </ScrollView>
 
             <View style={styles.footer}>
                 <View style={styles.footerInner}>
                     <TouchableOpacity
-                        disabled={processing || !onboardingRequestId}
+                        disabled={
+                            processing ||
+                            restoringAttempt ||
+                            !onboardingRequestId
+                        }
                         activeOpacity={0.85}
-                        onPress={startPayment}
+                        onPress={
+                            activeAttempt ? resumeActiveAttempt : startPayment
+                        }
                         style={[
                             styles.payButton,
-                            (processing || !onboardingRequestId) &&
+                            (processing ||
+                                restoringAttempt ||
+                                !onboardingRequestId) &&
                                 styles.payButtonDisabled,
                         ]}
                     >
-                        {processing ? (
+                        {processing || restoringAttempt ? (
                             <ActivityIndicator color="#FFFFFF" />
                         ) : (
                             <>
@@ -362,13 +639,67 @@ export default function PaymentScreen() {
                                     color="#FFFFFF"
                                 />
                                 <Text style={styles.payButtonText}>
-                                    Continue Securely
+                                    {activeAttempt
+                                        ? activeAttempt.method === 'PHONEPE' &&
+                                          activeAttempt.checkoutUrl
+                                            ? 'Resume PhonePe'
+                                            : 'Check Payment Status'
+                                        : 'Continue Securely'}
                                 </Text>
                             </>
                         )}
                     </TouchableOpacity>
                 </View>
             </View>
+
+            <Modal
+                visible={showChangeMethodConfirm}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowChangeMethodConfirm(false)}
+            >
+                <View style={styles.modalBackdrop}>
+                    <View style={styles.modalCard}>
+                        <View style={styles.modalIcon}>
+                            <Ionicons
+                                name="swap-horizontal-outline"
+                                size={24}
+                                color="#0284C7"
+                            />
+                        </View>
+                        <Text style={styles.modalTitle}>
+                            Change payment method?
+                        </Text>
+                        <Text style={styles.modalText}>
+                            We’ll safely close the current gateway attempt
+                            before starting another payment.
+                        </Text>
+
+                        <TouchableOpacity
+                            disabled={processing}
+                            onPress={cancelActiveAttempt}
+                            style={styles.modalPrimaryButton}
+                        >
+                            {processing ? (
+                                <ActivityIndicator color="#FFFFFF" />
+                            ) : (
+                                <Text style={styles.modalPrimaryText}>
+                                    Change method
+                                </Text>
+                            )}
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            disabled={processing}
+                            onPress={() => setShowChangeMethodConfirm(false)}
+                            style={styles.modalSecondaryButton}
+                        >
+                            <Text style={styles.modalSecondaryText}>
+                                Continue current payment
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -443,6 +774,7 @@ const styles = StyleSheet.create({
     },
     optionSelected: { borderColor: '#38BDF8', backgroundColor: '#F0F9FF' },
     optionDisabled: { opacity: 0.58, backgroundColor: '#F8FAFC' },
+    optionLocked: { opacity: 0.48 },
     optionIcon: {
         width: 42,
         height: 42,
@@ -480,21 +812,111 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#64748B',
     },
-    note: {
-        marginTop: 8,
-        padding: 12,
-        borderRadius: 14,
-        backgroundColor: '#FFFBEB',
+    progressCard: {
+        marginTop: 16,
+        padding: 14,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#BAE6FD',
+        backgroundColor: '#F0F9FF',
         flexDirection: 'row',
         alignItems: 'flex-start',
     },
-    noteText: {
-        flex: 1,
-        marginLeft: 8,
-        fontSize: 11,
+    progressIcon: {
+        width: 42,
+        height: 42,
+        borderRadius: 13,
+        backgroundColor: '#E0F2FE',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    progressContent: { flex: 1, marginLeft: 12 },
+    progressTitle: {
+        fontSize: 14,
+        lineHeight: 19,
+        fontWeight: '900',
+        color: '#0F172A',
+    },
+    progressText: {
+        marginTop: 3,
+        fontSize: 11.5,
         lineHeight: 17,
-        fontWeight: '700',
-        color: '#92400E',
+        fontWeight: '600',
+        color: '#475569',
+    },
+    changeMethodText: {
+        marginTop: 8,
+        fontSize: 12,
+        lineHeight: 17,
+        fontWeight: '900',
+        color: '#0369A1',
+    },
+    modalBackdrop: {
+        flex: 1,
+        padding: 20,
+        backgroundColor: 'rgba(15, 23, 42, 0.56)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    modalCard: {
+        width: '100%',
+        maxWidth: 420,
+        padding: 22,
+        borderRadius: 22,
+        backgroundColor: '#FFFFFF',
+        alignItems: 'center',
+    },
+    modalIcon: {
+        width: 52,
+        height: 52,
+        borderRadius: 16,
+        backgroundColor: '#E0F2FE',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    modalTitle: {
+        marginTop: 16,
+        fontSize: 19,
+        lineHeight: 24,
+        fontWeight: '900',
+        color: '#0F172A',
+        textAlign: 'center',
+    },
+    modalText: {
+        marginTop: 8,
+        fontSize: 13,
+        lineHeight: 19,
+        fontWeight: '600',
+        color: '#64748B',
+        textAlign: 'center',
+    },
+    modalPrimaryButton: {
+        width: '100%',
+        minHeight: 50,
+        marginTop: 22,
+        borderRadius: 15,
+        backgroundColor: '#0EA5E9',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    modalPrimaryText: {
+        fontSize: 14,
+        lineHeight: 18,
+        fontWeight: '900',
+        color: '#FFFFFF',
+    },
+    modalSecondaryButton: {
+        minHeight: 44,
+        marginTop: 6,
+        paddingHorizontal: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    modalSecondaryText: {
+        fontSize: 13,
+        lineHeight: 18,
+        fontWeight: '800',
+        color: '#475569',
     },
     footer: {
         position: 'absolute',

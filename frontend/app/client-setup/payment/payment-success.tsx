@@ -12,8 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
     getPaymentStatus,
-    PaymentResponse,
     paymentErrorMessage,
+    PaymentResponse,
 } from '@/services/paymentService';
 
 const POLL_ATTEMPTS = 8;
@@ -104,6 +104,13 @@ export default function PaymentSuccessScreen() {
     const pending = payment != null && !payment.terminal && !refundPending;
     const positive = successful || refundCompleted;
     const warning = pending || refundPending;
+    const canTryAnotherPayment = Boolean(
+        payment &&
+        payment.terminal &&
+        !payment.successful &&
+        !payment.refundStatus &&
+        (payment.status === 'FAILED' || payment.status === 'EXPIRED')
+    );
     const iconName = positive
         ? 'checkmark-circle'
         : warning
@@ -144,10 +151,6 @@ export default function PaymentSuccessScreen() {
             <SafeAreaView style={styles.container}>
                 <View style={styles.content}>
                     <ActivityIndicator size="large" color="#0EA5E9" />
-                    <Text style={styles.loadingTitle}>Verifying payment</Text>
-                    <Text style={styles.message}>
-                        Please wait while Zincy checks the gateway status.
-                    </Text>
                 </View>
             </SafeAreaView>
         );
@@ -155,14 +158,7 @@ export default function PaymentSuccessScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
-            <View style={styles.content}>
-                <View style={[styles.iconBox, { backgroundColor: iconBackground }]}>
-                    <Ionicons name={iconName} size={64} color={iconColor} />
-                </View>
-
-                <Text style={styles.title}>{title}</Text>
-                <Text style={styles.message}>{message}</Text>
-
+            <View style={styles.content}><View style={[styles.iconBox, { backgroundColor: iconBackground }]}><Ionicons name={iconName} size={64} color={iconColor} /></View><Text style={styles.title}>{title}</Text><Text style={styles.message}>{message}</Text>
                 {payment && (
                     <View style={styles.card}>
                         <Text style={styles.label}>Amount</Text>
@@ -198,7 +194,7 @@ export default function PaymentSuccessScreen() {
                     </View>
                 )}
 
-                {(pending || refundPending || error) && (
+                {(pending || refundPending || Boolean(error)) && (
                     <TouchableOpacity
                         style={styles.secondaryButton}
                         onPress={() => void checkPayment(false)}
@@ -215,8 +211,32 @@ export default function PaymentSuccessScreen() {
                     </TouchableOpacity>
                 )}
 
+                {canTryAnotherPayment && payment && (
+                    <TouchableOpacity
+                        style={styles.button}
+                        onPress={() =>
+                            router.replace({
+                                pathname: '/client-setup/payment/payment',
+                                params: {
+                                    onboardingRequestId: String(
+                                        payment.onboardingRequestId
+                                    ),
+                                },
+                            })
+                        }
+                        activeOpacity={0.85}
+                    >
+                        <Text style={styles.buttonText}>
+                            Try another payment
+                        </Text>
+                    </TouchableOpacity>
+                )}
+
                 <TouchableOpacity
-                    style={styles.button}
+                    style={[
+                        styles.button,
+                        canTryAnotherPayment && styles.homeButton,
+                    ]}
                     onPress={() => router.replace('/(website)')}
                     activeOpacity={0.85}
                 >
@@ -318,6 +338,9 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     buttonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' },
+    homeButton: {
+        backgroundColor: '#475569',
+    },
     secondaryButton: {
         width: '100%',
         minHeight: 50,

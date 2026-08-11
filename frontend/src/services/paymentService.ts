@@ -129,6 +129,15 @@ export async function getPaymentStatus(
     return response.data;
 }
 
+export async function abandonPaymentAttempt(
+    paymentRecordId: number
+): Promise<PaymentResponse> {
+    const response = await api.post<PaymentResponse>(
+        `/payments/${paymentRecordId}/abandon`
+    );
+    return response.data;
+}
+
 export function paymentErrorMessage(
     error: unknown,
     fallback = 'Payment request failed.'

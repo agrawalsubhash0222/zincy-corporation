@@ -12,6 +12,7 @@ type RazorpayFailure = {
 
 type RazorpayInstance = {
     open: () => void;
+    close: () => void;
     on: (event: string, callback: (response: RazorpayFailure) => void) => void;
 };
 
@@ -85,7 +86,10 @@ export async function openRazorpayCardCheckout(options: {
                 // whether this was a success or a cancellation.
                 ondismiss: () => resolve(null),
             },
-            retry: { enabled: true, max_count: 2 },
+            // A failed gateway attempt is terminal in Zincy's database. Do
+            // not let Checkout retry the same Razorpay order after that row
+            // has been marked FAILED and its active-payment lock released.
+            retry: { enabled: false },
             theme: { color: '#0EA5E9' },
             method: {
                 card: true,
@@ -110,11 +114,13 @@ export async function openRazorpayCardCheckout(options: {
         });
 
         checkout.on('payment.failed', (response) => {
-            reject(
-                new Error(
-                    response.error?.description || 'Card payment failed.'
-                )
+            const error = new Error(
+                response.error?.description || 'Card payment failed.'
             );
+            // Reject first so modal.ondismiss cannot turn a known failure
+            // into a cancellation result while close() is firing.
+            reject(error);
+            checkout.close();
         });
         checkout.open();
     });
