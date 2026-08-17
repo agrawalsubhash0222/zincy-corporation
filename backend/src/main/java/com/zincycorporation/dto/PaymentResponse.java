@@ -26,9 +26,12 @@ public class PaymentResponse {
     private String currency;
     private PaymentStatus status;
     private String providerState;
+    private String failureCode;
     private String failureReason;
     private LocalDateTime paidAt;
     private LocalDateTime expiresAt;
+    private boolean cancelRetryAllowed;
+    private long cancelRetrySecondsRemaining;
     private boolean terminal;
     private boolean successful;
     private Long refundId;

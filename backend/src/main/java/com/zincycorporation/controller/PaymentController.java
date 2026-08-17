@@ -48,8 +48,11 @@ public class PaymentController {
 
     @PostMapping("/{paymentRecordId}/abandon")
     public PaymentResponse abandon(
-            @PathVariable Long paymentRecordId) {
-        return paymentService.abandonPayment(paymentRecordId);
+            @PathVariable Long paymentRecordId,
+            @RequestParam(defaultValue = "false") boolean customerCancelled) {
+        return paymentService.abandonPayment(
+                paymentRecordId,
+                customerCancelled);
     }
 
     @PostMapping("/phonepe/webhook")

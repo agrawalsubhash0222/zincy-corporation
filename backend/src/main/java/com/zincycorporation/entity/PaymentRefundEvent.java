@@ -56,7 +56,17 @@ public class PaymentRefundEvent {
     @Column(name = "new_status", length = 30)
     private RefundStatus newStatus;
 
-    @Column(name = "gateway_event_id", length = 120)
+    /*
+     * Important:
+     *
+     * Gateway event IDs are used for webhook idempotency.
+     * Keep this unique so two concurrent webhook deliveries cannot
+     * reserve/process the same gateway event.
+     *
+     * nullable = true is intentional because internal audit events
+     * do not necessarily have a gateway event ID.
+     */
+    @Column(name = "gateway_event_id", length = 120, unique = true)
     private String gatewayEventId;
 
     @Column(length = 1000)
@@ -67,6 +77,8 @@ public class PaymentRefundEvent {
 
     @PrePersist
     void onCreate() {
-        createdAt = LocalDateTime.now();
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
     }
 }

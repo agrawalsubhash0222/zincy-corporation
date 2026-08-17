@@ -34,829 +34,1743 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class PaymentRefundService {
 
-    private static final List<String> AUTOMATIC_REFUND_CODES = List.of(
-            "DUPLICATE_CAPTURE",
-            "FORBIDDEN_PAYMENT_METHOD",
-            "LATE_CAPTURE");
+        private static final List<String> AUTOMATIC_REFUND_CODES = List.of(
+                        "DUPLICATE_CAPTURE",
+                        "FORBIDDEN_PAYMENT_METHOD",
+                        "LATE_CAPTURE");
 
-    private final PaymentRefundRepository refundRepository;
-    private final PaymentRefundEventRepository eventRepository;
-    private final PaymentTransactionRepository paymentRepository;
-    private final PhonePeClient phonePeClient;
-    private final RazorpayRefundClient razorpayRefundClient;
-    private final CurrentUserService currentUserService;
+        private static final String PHONEPE_NOT_FOUND_CODE = "PHONEPE_HTTP_404";
 
-    public RefundResponse requestAdminRefund(
-            Long paymentOrderId,
-            CreateRefundRequest request) {
-        Users admin = requireAdmin();
-        validateRequest(request);
+        private final PaymentRefundRepository refundRepository;
+        private final PaymentRefundEventRepository eventRepository;
+        private final PaymentTransactionRepository paymentRepository;
+        private final PhonePeClient phonePeClient;
+        private final RazorpayRefundClient razorpayRefundClient;
+        private final CurrentUserService currentUserService;
 
-        PaymentRefund idempotent = refundRepository
-                .findByIdempotencyKey(request.getIdempotencyKey())
-                .orElse(null);
-        if (idempotent != null) {
-            if (!idempotent.getPaymentOrderId().equals(paymentOrderId)) {
-                throw conflict(
-                        "Refund idempotency key is already used for another payment");
-            }
-            return toResponse(idempotent);
-        }
+        public RefundResponse requestAdminRefund(
+                        Long paymentOrderId,
+                        CreateRefundRequest request) {
 
-        PaymentTransaction payment = requireRefundablePayment(paymentOrderId);
-        PaymentRefund existing = refundRepository
-                .findByPaymentOrderId(paymentOrderId)
-                .orElse(null);
-        if (existing != null) {
-            return toResponse(existing);
-        }
+                Users admin = requireAdmin();
+                validateRequest(request);
 
-        RefundReason reason = request.getReason() == null
-                ? RefundReason.CUSTOMER_CANCELLATION
-                : request.getReason();
-        PaymentRefund refund = createRefundRecord(
-                payment,
-                reason,
-                request.getIdempotencyKey(),
-                request.getNote(),
-                admin.getId(),
-                false,
-                RefundSource.ADMIN);
+                /*
+                 * First honor the caller's idempotency key.
+                 *
+                 * This prevents a client retry from creating a second refund.
+                 */
+                PaymentRefund idempotent = refundRepository
+                                .findByIdempotencyKey(request.getIdempotencyKey())
+                                .orElse(null);
 
-        return toResponse(submit(refund, payment, RefundSource.ADMIN));
-    }
+                if (idempotent != null) {
+                        if (!idempotent.getPaymentOrderId().equals(paymentOrderId)) {
+                                throw conflict(
+                                                "Refund idempotency key is already used for another payment");
+                        }
 
-    public RefundResponse retryAdminRefund(Long refundId) {
-        requireAdmin();
-        PaymentRefund refund = requireRefund(refundId);
-        if (refund.getStatus() == RefundStatus.COMPLETED) {
-            return toResponse(refund);
-        }
-        if (refund.getStatus() == RefundStatus.REVIEW_REQUIRED) {
-            throw conflict(
-                    "Review the refund mismatch before attempting another refund");
-        }
-        if (refund.getStatus() != RefundStatus.FAILED
-                && refund.getStatus() != RefundStatus.REQUESTED
-                && refund.getStatus() != RefundStatus.PENDING) {
-            throw conflict("This refund cannot be retried");
-        }
-
-        PaymentTransaction payment = requirePayment(refund.getPaymentOrderId());
-        if (refund.getStatus() == RefundStatus.PENDING
-                && !isBlank(refund.getProviderRefundId())) {
-            return toResponse(reconcile(refund, RefundSource.ADMIN));
-        }
-
-        if (refund.getStatus() == RefundStatus.FAILED) {
-            refund = resetForRetry(refund);
-        }
-
-        return toResponse(submit(refund, payment, RefundSource.ADMIN));
-    }
-
-    public RefundResponse getAdminRefund(Long refundId, boolean refresh) {
-        requireAdmin();
-        PaymentRefund refund = requireRefund(refundId);
-        if (refresh && refund.getStatus() != RefundStatus.COMPLETED) {
-            refund = reconcile(refund, RefundSource.ADMIN);
-        }
-        return toResponse(refund);
-    }
-
-    public List<RefundResponse> listAdminRefunds(RefundStatus status) {
-        requireAdmin();
-        List<PaymentRefund> refunds = status == null
-                ? refundRepository.findTop100ByOrderByUpdatedAtDesc()
-                : refundRepository
-                        .findTop100ByStatusOrderByUpdatedAtDesc(status);
-        return refunds.stream().map(this::toResponse).toList();
-    }
-
-    public RefundResponse findByPaymentOrderId(Long paymentOrderId) {
-        return refundRepository.findByPaymentOrderId(paymentOrderId)
-                .map(this::toResponse)
-                .orElse(null);
-    }
-
-    public RefundResponse refreshByPaymentOrderId(Long paymentOrderId) {
-        PaymentRefund refund = refundRepository
-                .findByPaymentOrderId(paymentOrderId)
-                .orElse(null);
-        if (refund == null) {
-            return null;
-        }
-        if (refund.getStatus() == RefundStatus.REQUESTED
-                || refund.getStatus() == RefundStatus.PENDING) {
-            refund = reconcile(refund, RefundSource.SCHEDULER);
-        }
-        return toResponse(refund);
-    }
-
-    public void ensureAutomaticRefund(PaymentTransaction payment) {
-        if (payment == null
-                || payment.getId() == null
-                || payment.getStatus() != PaymentStatus.REVIEW_REQUIRED
-                || !AUTOMATIC_REFUND_CODES.contains(payment.getFailureCode())
-                || isBlank(payment.getProviderPaymentId())) {
-            return;
-        }
-
-        PaymentRefund existing = refundRepository
-                .findByPaymentOrderId(payment.getId())
-                .orElse(null);
-        if (existing != null) {
-            return;
-        }
-
-        RefundReason reason = switch (payment.getFailureCode()) {
-            case "DUPLICATE_CAPTURE" -> RefundReason.DUPLICATE_CAPTURE;
-            case "LATE_CAPTURE" -> RefundReason.LATE_CAPTURE;
-            default -> RefundReason.FORBIDDEN_PAYMENT_METHOD;
-        };
-
-        PaymentRefund refund = createRefundRecord(
-                payment,
-                reason,
-                "auto_refund_payment_" + payment.getId(),
-                payment.getFailureReason(),
-                null,
-                true,
-                RefundSource.AUTOMATIC);
-        submit(refund, payment, RefundSource.AUTOMATIC);
-    }
-
-    public PaymentRefund reconcile(
-            PaymentRefund refund,
-            RefundSource source) {
-        if (refund == null || refund.getStatus() == RefundStatus.COMPLETED) {
-            return refund;
-        }
-
-        PaymentTransaction payment = requirePayment(refund.getPaymentOrderId());
-        if (isBlank(refund.getProviderRefundId())) {
-            if (refund.getProvider() == PaymentProvider.RAZORPAY) {
-                try {
-                    RazorpayRefundClient.RefundResult recovered = razorpayRefundClient.findRefundByReceipt(
-                            payment.getProviderPaymentId(),
-                            refund.getMerchantRefundId());
-                    if (recovered != null) {
-                        return applyRazorpayResult(
-                                refund, payment, recovered, source, null);
-                    }
-                } catch (RefundGatewayException exception) {
-                    return handleRazorpayFailure(refund, source, exception);
+                        return toResponse(idempotent);
                 }
-            }
-            // PhonePe merchantRefundId and Razorpay receipt are stable across
-            // retries. Never generate a second reference for an ambiguous POST.
-            return submit(refund, payment, source);
+
+                PaymentTransaction payment = requireRefundablePayment(paymentOrderId);
+
+                /*
+                 * The system currently permits only one refund record per payment.
+                 * The database unique constraint is the final concurrency protection.
+                 */
+                PaymentRefund existing = refundRepository
+                                .findByPaymentOrderId(paymentOrderId)
+                                .orElse(null);
+
+                if (existing != null) {
+                        return toResponse(existing);
+                }
+
+                RefundReason reason = request.getReason() == null
+                                ? RefundReason.CUSTOMER_CANCELLATION
+                                : request.getReason();
+
+                PaymentRefund refund = createRefundRecord(
+                                payment,
+                                reason,
+                                request.getIdempotencyKey(),
+                                request.getNote(),
+                                admin.getId(),
+                                false,
+                                RefundSource.ADMIN);
+
+                return toResponse(
+                                submit(
+                                                refund,
+                                                payment,
+                                                RefundSource.ADMIN));
         }
 
-        try {
-            if (refund.getProvider() == PaymentProvider.PHONEPE) {
-                PhonePeClient.RefundResult result = phonePeClient
-                        .getRefundStatus(refund.getMerchantRefundId());
-                return applyPhonePeResult(refund, payment, result, source, null);
-            }
+        public RefundResponse retryAdminRefund(Long refundId) {
 
-            RazorpayRefundClient.RefundResult result = razorpayRefundClient
-                    .getRefundStatus(refund.getProviderRefundId());
-            return applyRazorpayResult(refund, payment, result, source, null);
-        } catch (RefundGatewayException exception) {
-            return handleRazorpayFailure(refund, source, exception);
-        } catch (ResponseStatusException exception) {
-            scheduleRetry(
-                    refund,
-                    "REFUND_STATUS_UNCONFIRMED",
-                    "The gateway refund status could not be confirmed");
-            audit(
-                    refund,
-                    source,
-                    "REFUND_STATUS_UNCONFIRMED",
-                    refund.getStatus(),
-                    refund.getStatus(),
-                    null,
-                    safeReason(exception));
-            return refundRepository.save(refund);
-        }
-    }
+                requireAdmin();
 
-    public void handlePhonePeWebhook(JsonNode root, String event) {
-        JsonNode payload = root == null ? null : root.path("payload");
-        String merchantRefundId = text(payload, "merchantRefundId");
-        if (merchantRefundId == null) {
-            return;
-        }
+                PaymentRefund refund = requireRefund(refundId);
 
-        PaymentRefund refund = refundRepository
-                .findByMerchantRefundId(merchantRefundId)
-                .orElse(null);
-        if (refund == null || refund.getProvider() != PaymentProvider.PHONEPE) {
-            return;
-        }
+                if (refund.getStatus() == RefundStatus.COMPLETED) {
+                        return toResponse(refund);
+                }
 
-        String state = text(payload, "state");
-        String providerRefundId = text(payload, "refundId");
-        long amountPaise = payload.path("amount").asLong(0);
-        String gatewayEventId = truncate(
-                merchantRefundId
-                        + ":"
-                        + firstNonBlank(state, "UNKNOWN")
-                        + ":"
-                        + firstNonBlank(providerRefundId, "NONE"),
-                120);
+                if (refund.getStatus() == RefundStatus.REVIEW_REQUIRED) {
+                        throw conflict(
+                                        "Review the refund mismatch before attempting another refund");
+                }
 
-        PhonePeClient.RefundResult result = new PhonePeClient.RefundResult(
-                providerRefundId,
-                state,
-                amountPaise,
-                text(payload.path("errorContext"), "errorCode"),
-                text(payload.path("errorContext"), "errorDescription"));
-        PaymentTransaction payment = requirePayment(refund.getPaymentOrderId());
-        String originalMerchantOrderId = text(
-                payload,
-                "originalMerchantOrderId");
-        if (originalMerchantOrderId != null
-                && !originalMerchantOrderId.equals(
-                        payment.getMerchantOrderId())) {
-            markRefundForReview(
-                    refund,
-                    RefundSource.PHONEPE_WEBHOOK,
-                    gatewayEventId,
-                    "REFUND_PAYMENT_MISMATCH",
-                    "PhonePe refund belongs to another merchant order");
-            return;
-        }
-        refund.setLastWebhookEvent(firstNonBlank(event, gatewayEventId));
-        refund.setLastWebhookAt(LocalDateTime.now());
-        applyPhonePeResult(
-                refund,
-                payment,
-                result,
-                RefundSource.PHONEPE_WEBHOOK,
-                gatewayEventId);
-    }
+                if (refund.getStatus() != RefundStatus.FAILED
+                                && refund.getStatus() != RefundStatus.REQUESTED
+                                && refund.getStatus() != RefundStatus.PENDING) {
+                        throw conflict("This refund cannot be retried");
+                }
 
-    public void handleRazorpayWebhook(
-            JsonNode refundEntity,
-            String event,
-            String eventId) {
-        String providerRefundId = text(refundEntity, "id");
-        String merchantRefundId = firstNonBlank(
-                text(refundEntity.path("notes"), "zincyMerchantRefundId"),
-                text(refundEntity, "receipt"));
+                PaymentTransaction payment = requirePayment(
+                                refund.getPaymentOrderId());
 
-        PaymentRefund refund = providerRefundId == null
-                ? null
-                : refundRepository.findByProviderAndProviderRefundId(
-                        PaymentProvider.RAZORPAY,
-                        providerRefundId).orElse(null);
-        if (refund == null && merchantRefundId != null) {
-            refund = refundRepository
-                    .findByMerchantRefundId(merchantRefundId)
-                    .orElse(null);
-        }
-        if (refund == null || refund.getProvider() != PaymentProvider.RAZORPAY) {
-            return;
+                /*
+                 * If a provider refund reference already exists, do not create
+                 * another refund. Reconcile the existing provider refund instead.
+                 */
+                if (refund.getStatus() == RefundStatus.PENDING
+                                && !isBlank(refund.getProviderRefundId())) {
+
+                        return toResponse(
+                                        reconcile(
+                                                        refund,
+                                                        RefundSource.ADMIN));
+                }
+
+                /*
+                 * A FAILED refund gets a fresh merchant reference before another
+                 * submission attempt.
+                 */
+                if (refund.getStatus() == RefundStatus.FAILED) {
+                        refund = resetForRetry(refund);
+                }
+
+                return toResponse(
+                                submit(
+                                                refund,
+                                                payment,
+                                                RefundSource.ADMIN));
         }
 
-        RazorpayRefundClient.RefundResult result = new RazorpayRefundClient.RefundResult(
-                providerRefundId,
-                text(refundEntity, "status"),
-                refundEntity.path("amount").asLong(0),
-                text(refundEntity, "error_code"),
-                text(refundEntity, "error_description"));
-        PaymentTransaction payment = requirePayment(refund.getPaymentOrderId());
-        String providerPaymentId = text(refundEntity, "payment_id");
-        String gatewayEventId = firstNonBlank(
-                eventId,
-                truncate(
-                        firstNonBlank(providerRefundId, "UNKNOWN")
-                                + ":"
-                                + firstNonBlank(
-                                        text(refundEntity, "status"),
-                                        firstNonBlank(event, "UNKNOWN")),
-                        120));
-        if (providerPaymentId != null
-                && !providerPaymentId.equals(
-                        payment.getProviderPaymentId())) {
-            markRefundForReview(
-                    refund,
-                    RefundSource.RAZORPAY_WEBHOOK,
-                    gatewayEventId,
-                    "REFUND_PAYMENT_MISMATCH",
-                    "Razorpay refund belongs to another payment");
-            return;
-        }
-        refund.setLastWebhookEvent(firstNonBlank(eventId, event));
-        refund.setLastWebhookAt(LocalDateTime.now());
-        applyRazorpayResult(
-                refund,
-                payment,
-                result,
-                RefundSource.RAZORPAY_WEBHOOK,
-                gatewayEventId);
-    }
+        public RefundResponse getAdminRefund(
+                        Long refundId,
+                        boolean refresh) {
 
-    public RefundResponse toResponse(PaymentRefund refund) {
-        return RefundResponse.builder()
-                .id(refund.getId())
-                .paymentOrderId(refund.getPaymentOrderId())
-                .onboardingRequestId(refund.getOnboardingRequestId())
-                .provider(refund.getProvider())
-                .reason(refund.getReason())
-                .status(refund.getStatus())
-                .amount(refund.getAmount())
-                .currency(refund.getCurrency())
-                .merchantRefundId(refund.getMerchantRefundId())
-                .providerRefundId(refund.getProviderRefundId())
-                .providerState(refund.getProviderState())
-                .failureCode(refund.getFailureCode())
-                .failureReason(refund.getFailureReason())
-                .reconcileAttempts(refund.getReconcileAttempts())
-                .nextReconcileAt(refund.getNextReconcileAt())
-                .lastReconciledAt(refund.getLastReconciledAt())
-                .automatic(Boolean.TRUE.equals(refund.getAutomaticRefund()))
-                .createdAt(refund.getCreatedAt())
-                .completedAt(refund.getCompletedAt())
-                .build();
-    }
+                requireAdmin();
 
-    private PaymentRefund createRefundRecord(
-            PaymentTransaction payment,
-            RefundReason reason,
-            String idempotencyKey,
-            String note,
-            Long requestedByUserId,
-            boolean automatic,
-            RefundSource source) {
-        PaymentRefund refund = PaymentRefund.builder()
-                .paymentOrderId(payment.getId())
-                .onboardingRequestId(payment.getOnboardingRequestId())
-                .provider(payment.getProvider())
-                .reason(reason)
-                .status(RefundStatus.REQUESTED)
-                .amount(payment.getAmount())
-                .amountPaise(payment.getAmountPaise())
-                .currency(payment.getCurrency())
-                .merchantRefundId(merchantRefundId())
-                .idempotencyKey(idempotencyKey)
-                .requestedByUserId(requestedByUserId)
-                .automaticRefund(automatic)
-                .requestNote(truncate(note, 500))
-                .reconcileAttempts(0)
-                .nextReconcileAt(LocalDateTime.now())
-                .build();
+                PaymentRefund refund = requireRefund(refundId);
 
-        try {
-            refund = refundRepository.saveAndFlush(refund);
-        } catch (DataIntegrityViolationException exception) {
-            PaymentRefund concurrent = refundRepository
-                    .findByPaymentOrderId(payment.getId())
-                    .orElse(null);
-            if (concurrent != null) {
-                return concurrent;
-            }
-            throw conflict("Another refund request was created concurrently");
+                if (refresh
+                                && refund.getStatus() != RefundStatus.COMPLETED) {
+
+                        refund = reconcile(
+                                        refund,
+                                        RefundSource.ADMIN);
+                }
+
+                return toResponse(refund);
         }
 
-        audit(
-                refund,
-                source,
-                "REFUND_REQUESTED",
-                null,
-                RefundStatus.REQUESTED,
-                null,
-                reason.name());
-        return refund;
-    }
+        public List<RefundResponse> listAdminRefunds(
+                        RefundStatus status) {
 
-    private PaymentRefund submit(
-            PaymentRefund refund,
-            PaymentTransaction payment,
-            RefundSource source) {
-        if (refund.getStatus() == RefundStatus.COMPLETED) {
-            return refund;
+                requireAdmin();
+
+                List<PaymentRefund> refunds = status == null
+                                ? refundRepository.findTop100ByOrderByUpdatedAtDesc()
+                                : refundRepository
+                                                .findTop100ByStatusOrderByUpdatedAtDesc(status);
+
+                return refunds.stream()
+                                .map(this::toResponse)
+                                .toList();
         }
 
-        try {
-            if (refund.getProvider() == PaymentProvider.PHONEPE) {
-                PhonePeClient.RefundResult result = phonePeClient.createRefund(
-                        refund.getMerchantRefundId(),
-                        payment.getMerchantOrderId(),
-                        refund.getAmountPaise());
-                return applyPhonePeResult(refund, payment, result, source, null);
-            }
+        public RefundResponse findByPaymentOrderId(
+                        Long paymentOrderId) {
 
-            if (isBlank(payment.getProviderPaymentId())) {
-                throw new ResponseStatusException(
-                        HttpStatus.CONFLICT,
-                        "Razorpay payment reference is unavailable");
-            }
-            RazorpayRefundClient.RefundResult result = razorpayRefundClient
-                    .createFullRefund(
-                            payment.getProviderPaymentId(),
-                            refund.getAmountPaise(),
-                            refund.getIdempotencyKey(),
-                            refund.getMerchantRefundId());
-            return applyRazorpayResult(refund, payment, result, source, null);
-        } catch (RefundGatewayException exception) {
-            return handleRazorpayFailure(refund, source, exception);
-        } catch (ResponseStatusException exception) {
-            RefundStatus oldStatus = refund.getStatus();
-            refund.setStatus(RefundStatus.PENDING);
-            scheduleRetry(
-                    refund,
-                    "REFUND_SUBMISSION_UNCONFIRMED",
-                    "The gateway did not confirm the refund request");
-            refund = refundRepository.save(refund);
-            audit(
-                    refund,
-                    source,
-                    "REFUND_SUBMISSION_UNCONFIRMED",
-                    oldStatus,
-                    refund.getStatus(),
-                    null,
-                    safeReason(exception));
-            return refund;
-        }
-    }
-
-    private PaymentRefund handleRazorpayFailure(
-            PaymentRefund refund,
-            RefundSource source,
-            RefundGatewayException exception) {
-        RefundStatus oldStatus = refund.getStatus();
-        refund.setFailureCode(truncate(exception.getGatewayCode(), 100));
-        refund.setFailureReason(truncate(exception.getMessage(), 500));
-        refund.setLastReconciledAt(LocalDateTime.now());
-        refund.setReconcileAttempts(value(refund.getReconcileAttempts()) + 1);
-
-        if (exception.getKind() == FailureKind.DEFINITIVE) {
-            refund.setStatus(RefundStatus.FAILED);
-            refund.setNextReconcileAt(null);
-        } else {
-            refund.setStatus(RefundStatus.PENDING);
-            refund.setNextReconcileAt(nextRetryAt(refund.getReconcileAttempts()));
-        }
-        refund = refundRepository.save(refund);
-        audit(
-                refund,
-                source,
-                exception.getKind() == FailureKind.DEFINITIVE
-                        ? "REFUND_REJECTED"
-                        : "REFUND_UNCONFIRMED",
-                oldStatus,
-                refund.getStatus(),
-                null,
-                exception.getMessage());
-        return refund;
-    }
-
-    private PaymentRefund resetForRetry(PaymentRefund refund) {
-        String previousReference = firstNonBlank(
-                refund.getProviderRefundId(),
-                refund.getMerchantRefundId());
-
-        RefundStatus oldStatus = refund.getStatus();
-
-        refund.setStatus(RefundStatus.REQUESTED);
-        refund.setMerchantRefundId(merchantRefundId());
-        refund.setIdempotencyKey(
-                "rr_"
-                        + refund.getId()
-                        + "_"
-                        + UUID.randomUUID().toString().replace("-", ""));
-
-        refund.setProviderRefundId(null);
-        refund.setProviderState(null);
-        refund.setFailureCode(null);
-        refund.setFailureReason(null);
-
-        // Prevent the scheduler from processing this refund while the
-        // synchronous admin retry is communicating with the gateway.
-        refund.setNextReconcileAt(LocalDateTime.now().plusMinutes(2));
-
-        PaymentRefund savedRefund = refundRepository.saveAndFlush(refund);
-
-        audit(
-                savedRefund,
-                RefundSource.ADMIN,
-                "REFUND_RETRY_REQUESTED",
-                oldStatus,
-                RefundStatus.REQUESTED,
-                null,
-                "Previous gateway reference: " + previousReference);
-
-        return savedRefund;
-    }
-
-    private PaymentRefund applyPhonePeResult(
-            PaymentRefund refund,
-            PaymentTransaction payment,
-            PhonePeClient.RefundResult result,
-            RefundSource source,
-            String gatewayEventId) {
-        return applyResult(
-                refund,
-                payment,
-                result.refundId(),
-                result.state(),
-                result.amountPaise(),
-                result.failureCode(),
-                result.failureReason(),
-                mapPhonePeStatus(result.state()),
-                source,
-                gatewayEventId);
-    }
-
-    private PaymentRefund applyRazorpayResult(
-            PaymentRefund refund,
-            PaymentTransaction payment,
-            RazorpayRefundClient.RefundResult result,
-            RefundSource source,
-            String gatewayEventId) {
-        return applyResult(
-                refund,
-                payment,
-                result.refundId(),
-                result.state(),
-                result.amountPaise(),
-                result.failureCode(),
-                result.failureReason(),
-                mapRazorpayStatus(result.state()),
-                source,
-                gatewayEventId);
-    }
-
-    private PaymentRefund applyResult(
-            PaymentRefund refund,
-            PaymentTransaction payment,
-            String providerRefundId,
-            String providerState,
-            long amountPaise,
-            String failureCode,
-            String failureReason,
-            RefundStatus newStatus,
-            RefundSource source,
-            String gatewayEventId) {
-        RefundStatus oldStatus = refund.getStatus();
-        if (oldStatus == RefundStatus.COMPLETED) {
-            return refund;
-        }
-        if (oldStatus == RefundStatus.REVIEW_REQUIRED) {
-            return refund;
-        }
-        if (oldStatus == RefundStatus.FAILED
-                && (newStatus == RefundStatus.REQUESTED
-                        || newStatus == RefundStatus.PENDING)) {
-            return refund;
+                return refundRepository
+                                .findByPaymentOrderId(paymentOrderId)
+                                .map(this::toResponse)
+                                .orElse(null);
         }
 
-        if (amountPaise > 0 && refund.getAmountPaise() != amountPaise) {
-            newStatus = RefundStatus.REVIEW_REQUIRED;
-            failureCode = "REFUND_AMOUNT_MISMATCH";
-            failureReason = "Gateway refund amount does not match the payment";
+        public RefundResponse refreshByPaymentOrderId(
+                        Long paymentOrderId) {
+
+                PaymentRefund refund = refundRepository
+                                .findByPaymentOrderId(paymentOrderId)
+                                .orElse(null);
+
+                if (refund == null) {
+                        return null;
+                }
+
+                if (refund.getStatus() == RefundStatus.REQUESTED
+                                || refund.getStatus() == RefundStatus.PENDING) {
+
+                        refund = reconcile(
+                                        refund,
+                                        RefundSource.SCHEDULER);
+                }
+
+                return toResponse(refund);
         }
 
-        if (providerRefundId != null) {
-            if (refund.getProviderRefundId() != null
-                    && !refund.getProviderRefundId().equals(providerRefundId)) {
-                newStatus = RefundStatus.REVIEW_REQUIRED;
-                failureCode = "REFUND_ID_MISMATCH";
-                failureReason = "Gateway refund reference changed unexpectedly";
-            } else {
-                refund.setProviderRefundId(providerRefundId);
-            }
+        public void ensureAutomaticRefund(
+                        PaymentTransaction payment) {
+
+                if (payment == null
+                                || payment.getId() == null
+                                || payment.getStatus() != PaymentStatus.REVIEW_REQUIRED
+                                || !AUTOMATIC_REFUND_CODES.contains(
+                                                payment.getFailureCode())
+                                || isBlank(payment.getProviderPaymentId())) {
+
+                        return;
+                }
+
+                PaymentRefund existing = refundRepository
+                                .findByPaymentOrderId(payment.getId())
+                                .orElse(null);
+
+                if (existing != null) {
+                        return;
+                }
+
+                RefundReason reason = switch (payment.getFailureCode()) {
+                        case "DUPLICATE_CAPTURE" ->
+                                RefundReason.DUPLICATE_CAPTURE;
+
+                        case "LATE_CAPTURE" ->
+                                RefundReason.LATE_CAPTURE;
+
+                        default ->
+                                RefundReason.FORBIDDEN_PAYMENT_METHOD;
+                };
+
+                PaymentRefund refund = createRefundRecord(
+                                payment,
+                                reason,
+                                "auto_refund_payment_" + payment.getId(),
+                                payment.getFailureReason(),
+                                null,
+                                true,
+                                RefundSource.AUTOMATIC);
+
+                /*
+                 * createRefundRecord() may return the refund created by another
+                 * concurrent thread.
+                 *
+                 * Only submit when this invocation actually owns a newly-created
+                 * REQUESTED refund.
+                 */
+                if (refund.getStatus() == RefundStatus.REQUESTED
+                                && value(refund.getReconcileAttempts()) == 0
+                                && isBlank(refund.getProviderRefundId())) {
+
+                        submit(
+                                        refund,
+                                        payment,
+                                        RefundSource.AUTOMATIC);
+                }
         }
 
-        refund.setProviderState(providerState);
-        refund.setStatus(newStatus);
-        refund.setFailureCode(failureCode);
-        refund.setFailureReason(truncate(failureReason, 500));
-        refund.setLastReconciledAt(LocalDateTime.now());
-        refund.setReconcileAttempts(value(refund.getReconcileAttempts()) + 1);
+        public PaymentRefund reconcile(
+                        PaymentRefund refund,
+                        RefundSource source) {
 
-        if (newStatus == RefundStatus.COMPLETED) {
-            refund.setCompletedAt(
-                    refund.getCompletedAt() == null
-                            ? LocalDateTime.now()
-                            : refund.getCompletedAt());
-            refund.setNextReconcileAt(null);
-            refund.setFailureCode(null);
-            refund.setFailureReason(null);
-            payment.setStatus(PaymentStatus.REFUNDED);
-            payment.setFailureCode(null);
-            payment.setFailureReason(null);
-            paymentRepository.save(payment);
-        } else if (newStatus == RefundStatus.FAILED
-                || newStatus == RefundStatus.REVIEW_REQUIRED) {
-            refund.setNextReconcileAt(null);
-        } else {
-            refund.setNextReconcileAt(nextRetryAt(refund.getReconcileAttempts()));
+                if (refund == null
+                                || refund.getStatus() == RefundStatus.COMPLETED) {
+
+                        return refund;
+                }
+
+                PaymentTransaction payment = requirePayment(
+                                refund.getPaymentOrderId());
+
+                /*
+                 * No provider refund reference exists yet.
+                 *
+                 * Before creating a new refund, attempt provider-side recovery
+                 * using the stable merchantRefundId.
+                 */
+                if (isBlank(refund.getProviderRefundId())) {
+
+                        /*
+                         * -------------------------------------------------------------
+                         * RAZORPAY RECOVERY
+                         * -------------------------------------------------------------
+                         */
+                        if (refund.getProvider() == PaymentProvider.RAZORPAY) {
+
+                                try {
+                                        RazorpayRefundClient.RefundResult recovered = razorpayRefundClient
+                                                        .findRefundByReceipt(
+                                                                        payment.getProviderPaymentId(),
+                                                                        refund.getMerchantRefundId());
+
+                                        if (recovered != null) {
+
+                                                return applyRazorpayResult(
+                                                                refund,
+                                                                payment,
+                                                                recovered,
+                                                                source,
+                                                                null);
+                                        }
+
+                                } catch (RefundGatewayException exception) {
+
+                                        /*
+                                         * We could not determine whether Razorpay created the
+                                         * refund. Do NOT blindly create another refund.
+                                         */
+                                        return handleRazorpayFailure(
+                                                        refund,
+                                                        source,
+                                                        exception);
+                                }
+                        }
+
+                        /*
+                         * -------------------------------------------------------------
+                         * PHONEPE RECOVERY
+                         * -------------------------------------------------------------
+                         *
+                         * The merchantRefundId is stable.
+                         *
+                         * First ask PhonePe whether that refund already exists.
+                         *
+                         * Only a 404 is treated as "refund does not exist", after which
+                         * it is safe to submit a new refund.
+                         */
+                        if (refund.getProvider() == PaymentProvider.PHONEPE) {
+
+                                try {
+                                        PhonePeClient.RefundResult recovered = phonePeClient.getRefundStatus(
+                                                        refund.getMerchantRefundId());
+
+                                        return applyPhonePeResult(
+                                                        refund,
+                                                        payment,
+                                                        recovered,
+                                                        source,
+                                                        null);
+
+                                } catch (PhonePeClient.RefundGatewayException exception) {
+
+                                        /*
+                                         * A 404 from the refund-status endpoint means that
+                                         * PhonePe has no refund with this merchant refund ID.
+                                         *
+                                         * This is different from a timeout/network error,
+                                         * where the POST could have succeeded but the response
+                                         * was lost.
+                                         */
+                                        if (isPhonePeRefundNotFound(exception)) {
+
+                                                return submit(
+                                                                refund,
+                                                                payment,
+                                                                source);
+                                        }
+
+                                        /*
+                                         * For all other failures, do NOT create another refund.
+                                         */
+                                        return handlePhonePeFailure(
+                                                        refund,
+                                                        source,
+                                                        exception);
+                                }
+                        }
+
+                        /*
+                         * Provider-specific recovery has completed and no existing
+                         * provider refund was found.
+                         *
+                         * It is now safe to submit the refund.
+                         */
+                        return submit(
+                                        refund,
+                                        payment,
+                                        source);
+                }
+
+                /*
+                 * A provider refund reference already exists.
+                 *
+                 * Only reconcile that exact provider refund. Never create another.
+                 */
+                try {
+
+                        if (refund.getProvider() == PaymentProvider.PHONEPE) {
+
+                                PhonePeClient.RefundResult result = phonePeClient.getRefundStatus(
+                                                refund.getMerchantRefundId());
+
+                                return applyPhonePeResult(
+                                                refund,
+                                                payment,
+                                                result,
+                                                source,
+                                                null);
+                        }
+
+                        RazorpayRefundClient.RefundResult result = razorpayRefundClient.getRefundStatus(
+                                        refund.getProviderRefundId());
+
+                        return applyRazorpayResult(
+                                        refund,
+                                        payment,
+                                        result,
+                                        source,
+                                        null);
+
+                } catch (PhonePeClient.RefundGatewayException exception) {
+
+                        /*
+                         * IMPORTANT:
+                         * Do not send a PhonePe exception to the Razorpay failure
+                         * handler.
+                         */
+                        return handlePhonePeFailure(
+                                        refund,
+                                        source,
+                                        exception);
+
+                } catch (RefundGatewayException exception) {
+
+                        /*
+                         * Razorpay-only exception path.
+                         */
+                        return handleRazorpayFailure(
+                                        refund,
+                                        source,
+                                        exception);
+
+                } catch (ResponseStatusException exception) {
+
+                        /*
+                         * Gateway status could not be confirmed.
+                         *
+                         * Keep the refund pending and let reconciliation try again.
+                         */
+                        RefundStatus oldStatus = refund.getStatus();
+
+                        scheduleRetry(
+                                        refund,
+                                        "REFUND_STATUS_UNCONFIRMED",
+                                        "The gateway refund status could not be confirmed");
+
+                        refund = refundRepository.save(refund);
+
+                        audit(
+                                        refund,
+                                        source,
+                                        "REFUND_STATUS_UNCONFIRMED",
+                                        oldStatus,
+                                        refund.getStatus(),
+                                        null,
+                                        safeReason(exception));
+
+                        return refund;
+                }
         }
 
-        refund = refundRepository.save(refund);
-        audit(
-                refund,
-                source,
-                "REFUND_STATUS_UPDATED",
-                oldStatus,
-                newStatus,
-                gatewayEventId,
-                firstNonBlank(providerState, newStatus.name()));
-        return refund;
-    }
+        public void handlePhonePeWebhook(
+                        JsonNode root,
+                        String event) {
 
-    private RefundStatus mapPhonePeStatus(String state) {
-        if ("COMPLETED".equalsIgnoreCase(state)) {
-            return RefundStatus.COMPLETED;
+                JsonNode payload = root == null
+                                ? null
+                                : root.path("payload");
+
+                String merchantRefundId = text(
+                                payload,
+                                "merchantRefundId");
+
+                if (merchantRefundId == null) {
+                        return;
+                }
+
+                PaymentRefund refund = refundRepository
+                                .findByMerchantRefundId(merchantRefundId)
+                                .orElse(null);
+
+                if (refund == null
+                                || refund.getProvider() != PaymentProvider.PHONEPE) {
+                        return;
+                }
+
+                String state = text(
+                                payload,
+                                "state");
+
+                String providerRefundId = text(
+                                payload,
+                                "refundId");
+
+                long amountPaise = payload
+                                .path("amount")
+                                .asLong(0);
+
+                /*
+                 * The fallback identifier is deterministic.
+                 *
+                 * This prevents the same webhook state from being applied more
+                 * than once when the provider does not expose an explicit event ID.
+                 */
+                String gatewayEventId = truncate(
+                                merchantRefundId
+                                                + ":"
+                                                + firstNonBlank(state, "UNKNOWN")
+                                                + ":"
+                                                + firstNonBlank(
+                                                                providerRefundId,
+                                                                "NONE"),
+                                120);
+
+                /*
+                 * Reserve the gateway event before changing the refund state.
+                 *
+                 * The unique database constraint provides the final concurrency
+                 * protection when two identical webhooks arrive simultaneously.
+                 */
+                if (!reserveGatewayEvent(
+                                refund,
+                                RefundSource.PHONEPE_WEBHOOK,
+                                gatewayEventId,
+                                "PhonePe refund webhook received")) {
+
+                        return;
+                }
+
+                PhonePeClient.RefundResult result = new PhonePeClient.RefundResult(
+                                providerRefundId,
+                                state,
+                                amountPaise,
+                                text(
+                                                payload.path("errorContext"),
+                                                "errorCode"),
+                                text(
+                                                payload.path("errorContext"),
+                                                "errorDescription"));
+
+                PaymentTransaction payment = requirePayment(
+                                refund.getPaymentOrderId());
+
+                /*
+                 * Validate that the refund belongs to the same merchant order.
+                 */
+                String originalMerchantOrderId = text(
+                                payload,
+                                "originalMerchantOrderId");
+
+                if (originalMerchantOrderId != null
+                                && !originalMerchantOrderId.equals(
+                                                payment.getMerchantOrderId())) {
+
+                        markRefundForReview(
+                                        refund,
+                                        RefundSource.PHONEPE_WEBHOOK,
+                                        gatewayEventId,
+                                        "REFUND_PAYMENT_MISMATCH",
+                                        "PhonePe refund belongs to another merchant order");
+
+                        return;
+                }
+
+                refund.setLastWebhookEvent(
+                                firstNonBlank(
+                                                event,
+                                                gatewayEventId));
+
+                refund.setLastWebhookAt(
+                                LocalDateTime.now());
+
+                applyPhonePeResult(
+                                refund,
+                                payment,
+                                result,
+                                RefundSource.PHONEPE_WEBHOOK,
+                                gatewayEventId);
         }
-        if ("FAILED".equalsIgnoreCase(state)) {
-            return RefundStatus.FAILED;
+
+        public void handleRazorpayWebhook(
+                        JsonNode refundEntity,
+                        String event,
+                        String eventId) {
+
+                String providerRefundId = text(
+                                refundEntity,
+                                "id");
+
+                String merchantRefundId = firstNonBlank(
+                                text(
+                                                refundEntity.path("notes"),
+                                                "zincyMerchantRefundId"),
+                                text(
+                                                refundEntity,
+                                                "receipt"));
+
+                PaymentRefund refund = providerRefundId == null
+                                ? null
+                                : refundRepository
+                                                .findByProviderAndProviderRefundId(
+                                                                PaymentProvider.RAZORPAY,
+                                                                providerRefundId)
+                                                .orElse(null);
+
+                if (refund == null
+                                && merchantRefundId != null) {
+
+                        refund = refundRepository
+                                        .findByMerchantRefundId(
+                                                        merchantRefundId)
+                                        .orElse(null);
+                }
+
+                if (refund == null
+                                || refund.getProvider() != PaymentProvider.RAZORPAY) {
+
+                        return;
+                }
+
+                RazorpayRefundClient.RefundResult result = new RazorpayRefundClient.RefundResult(
+                                providerRefundId,
+                                text(
+                                                refundEntity,
+                                                "status"),
+                                refundEntity
+                                                .path("amount")
+                                                .asLong(0),
+                                text(
+                                                refundEntity,
+                                                "error_code"),
+                                text(
+                                                refundEntity,
+                                                "error_description"));
+
+                PaymentTransaction payment = requirePayment(
+                                refund.getPaymentOrderId());
+
+                String providerPaymentId = text(
+                                refundEntity,
+                                "payment_id");
+
+                String gatewayEventId = firstNonBlank(
+                                eventId,
+                                truncate(
+                                                firstNonBlank(
+                                                                providerRefundId,
+                                                                "UNKNOWN")
+                                                                + ":"
+                                                                + firstNonBlank(
+                                                                                text(
+                                                                                                refundEntity,
+                                                                                                "status"),
+                                                                                firstNonBlank(
+                                                                                                event,
+                                                                                                "UNKNOWN")),
+                                                120));
+
+                /*
+                 * Ignore a webhook that has already been processed.
+                 */
+                if (!reserveGatewayEvent(
+                                refund,
+                                RefundSource.RAZORPAY_WEBHOOK,
+                                gatewayEventId,
+                                "Razorpay refund webhook received")) {
+
+                        return;
+                }
+
+                /*
+                 * Validate that the webhook refund belongs to the same payment.
+                 */
+                if (providerPaymentId != null
+                                && !providerPaymentId.equals(
+                                                payment.getProviderPaymentId())) {
+
+                        markRefundForReview(
+                                        refund,
+                                        RefundSource.RAZORPAY_WEBHOOK,
+                                        gatewayEventId,
+                                        "REFUND_PAYMENT_MISMATCH",
+                                        "Razorpay refund belongs to another payment");
+
+                        return;
+                }
+
+                refund.setLastWebhookEvent(
+                                firstNonBlank(
+                                                eventId,
+                                                event));
+
+                refund.setLastWebhookAt(
+                                LocalDateTime.now());
+
+                applyRazorpayResult(
+                                refund,
+                                payment,
+                                result,
+                                RefundSource.RAZORPAY_WEBHOOK,
+                                gatewayEventId);
         }
-        return RefundStatus.PENDING;
-    }
 
-    private RefundStatus mapRazorpayStatus(String state) {
-        if ("processed".equalsIgnoreCase(state)) {
-            return RefundStatus.COMPLETED;
+        public RefundResponse toResponse(
+                        PaymentRefund refund) {
+
+                return RefundResponse.builder()
+                                .id(refund.getId())
+                                .paymentOrderId(
+                                                refund.getPaymentOrderId())
+                                .onboardingRequestId(
+                                                refund.getOnboardingRequestId())
+                                .provider(
+                                                refund.getProvider())
+                                .reason(
+                                                refund.getReason())
+                                .status(
+                                                refund.getStatus())
+                                .amount(
+                                                refund.getAmount())
+                                .currency(
+                                                refund.getCurrency())
+                                .merchantRefundId(
+                                                refund.getMerchantRefundId())
+                                .providerRefundId(
+                                                refund.getProviderRefundId())
+                                .providerState(
+                                                refund.getProviderState())
+                                .failureCode(
+                                                refund.getFailureCode())
+                                .failureReason(
+                                                refund.getFailureReason())
+                                .reconcileAttempts(
+                                                refund.getReconcileAttempts())
+                                .nextReconcileAt(
+                                                refund.getNextReconcileAt())
+                                .lastReconciledAt(
+                                                refund.getLastReconciledAt())
+                                .automatic(
+                                                Boolean.TRUE.equals(
+                                                                refund.getAutomaticRefund()))
+                                .createdAt(
+                                                refund.getCreatedAt())
+                                .completedAt(
+                                                refund.getCompletedAt())
+                                .build();
         }
-        if ("failed".equalsIgnoreCase(state)) {
-            return RefundStatus.FAILED;
+
+        public boolean hasProcessedGatewayEvent(
+                        String gatewayEventId) {
+
+                if (gatewayEventId == null
+                                || gatewayEventId.isBlank()) {
+
+                        return false;
+                }
+
+                return eventRepository
+                                .existsByGatewayEventId(
+                                                gatewayEventId);
         }
-        return RefundStatus.PENDING;
-    }
 
-    private void scheduleRetry(
-            PaymentRefund refund,
-            String failureCode,
-            String failureReason) {
-        int attempts = value(refund.getReconcileAttempts()) + 1;
-        refund.setReconcileAttempts(attempts);
-        refund.setLastReconciledAt(LocalDateTime.now());
-        refund.setNextReconcileAt(nextRetryAt(attempts));
-        refund.setFailureCode(failureCode);
-        refund.setFailureReason(failureReason);
-    }
+        private boolean reserveGatewayEvent(
+                        PaymentRefund refund,
+                        RefundSource source,
+                        String gatewayEventId,
+                        String details) {
 
-    private void markRefundForReview(
-            PaymentRefund refund,
-            RefundSource source,
-            String gatewayEventId,
-            String failureCode,
-            String failureReason) {
-        RefundStatus oldStatus = refund.getStatus();
-        refund.setStatus(RefundStatus.REVIEW_REQUIRED);
-        refund.setFailureCode(failureCode);
-        refund.setFailureReason(truncate(failureReason, 500));
-        refund.setLastReconciledAt(LocalDateTime.now());
-        refund.setNextReconcileAt(null);
-        refund = refundRepository.save(refund);
-        audit(
-                refund,
-                source,
-                "REFUND_REVIEW_REQUIRED",
-                oldStatus,
-                RefundStatus.REVIEW_REQUIRED,
-                gatewayEventId,
-                failureReason);
-    }
+                if (gatewayEventId == null
+                                || gatewayEventId.isBlank()) {
 
-    private LocalDateTime nextRetryAt(int attempts) {
-        int seconds = switch (attempts) {
-            case 0, 1 -> 15;
-            case 2 -> 30;
-            case 3 -> 60;
-            case 4 -> 300;
-            default -> 900;
-        };
-        return LocalDateTime.now().plusSeconds(seconds);
-    }
+                        return true;
+                }
 
-    private PaymentTransaction requireRefundablePayment(Long paymentOrderId) {
-        PaymentTransaction payment = requirePayment(paymentOrderId);
-        if (payment.getStatus() == PaymentStatus.REFUNDED) {
-            throw conflict("This payment has already been refunded");
+                /*
+                 * Fast-path duplicate check.
+                 */
+                if (eventRepository
+                                .existsByGatewayEventId(
+                                                gatewayEventId)) {
+
+                        return false;
+                }
+
+                try {
+
+                        eventRepository.saveAndFlush(
+                                        PaymentRefundEvent.builder()
+                                                        .refundId(
+                                                                        refund.getId())
+                                                        .paymentOrderId(
+                                                                        refund.getPaymentOrderId())
+                                                        .source(source)
+                                                        .eventType(
+                                                                        "GATEWAY_EVENT_RECEIVED")
+                                                        .oldStatus(
+                                                                        refund.getStatus())
+                                                        .newStatus(
+                                                                        refund.getStatus())
+                                                        .gatewayEventId(
+                                                                        gatewayEventId)
+                                                        .details(
+                                                                        truncate(
+                                                                                        details,
+                                                                                        1000))
+                                                        .build());
+
+                        return true;
+
+                } catch (DataIntegrityViolationException duplicateEvent) {
+
+                        /*
+                         * Two webhook requests may pass the exists() check
+                         * simultaneously. The database unique constraint on
+                         * gatewayEventId is the final protection.
+                         */
+                        return false;
+                }
         }
-        if (payment.getStatus() != PaymentStatus.PAID
-                && payment.getStatus() != PaymentStatus.REVIEW_REQUIRED) {
-            throw conflict(
-                    "Only a captured or review-required payment can be refunded");
+
+        private PaymentRefund createRefundRecord(
+                        PaymentTransaction payment,
+                        RefundReason reason,
+                        String idempotencyKey,
+                        String note,
+                        Long requestedByUserId,
+                        boolean automatic,
+                        RefundSource source) {
+
+                PaymentRefund refund = PaymentRefund.builder()
+                                .paymentOrderId(
+                                                payment.getId())
+                                .onboardingRequestId(
+                                                payment.getOnboardingRequestId())
+                                .provider(
+                                                payment.getProvider())
+                                .reason(reason)
+                                .status(
+                                                RefundStatus.REQUESTED)
+                                .amount(
+                                                payment.getAmount())
+                                .amountPaise(
+                                                payment.getAmountPaise())
+                                .currency(
+                                                payment.getCurrency())
+                                .merchantRefundId(
+                                                merchantRefundId())
+                                .idempotencyKey(
+                                                idempotencyKey)
+                                .requestedByUserId(
+                                                requestedByUserId)
+                                .automaticRefund(
+                                                automatic)
+                                .requestNote(
+                                                truncate(
+                                                                note,
+                                                                500))
+                                .reconcileAttempts(0)
+                                .nextReconcileAt(
+                                                LocalDateTime.now())
+                                .build();
+
+                try {
+
+                        refund = refundRepository
+                                        .saveAndFlush(refund);
+
+                } catch (DataIntegrityViolationException exception) {
+
+                        /*
+                         * Another thread may have created the refund after our
+                         * initial exists() check.
+                         */
+                        PaymentRefund concurrent = refundRepository
+                                        .findByPaymentOrderId(
+                                                        payment.getId())
+                                        .orElse(null);
+
+                        if (concurrent != null) {
+                                return concurrent;
+                        }
+
+                        /*
+                         * Also check the idempotency key because a database conflict
+                         * may have originated from that unique constraint instead.
+                         */
+                        PaymentRefund concurrentByIdempotency = refundRepository
+                                        .findByIdempotencyKey(
+                                                        idempotencyKey)
+                                        .orElse(null);
+
+                        if (concurrentByIdempotency != null) {
+
+                                if (!concurrentByIdempotency
+                                                .getPaymentOrderId()
+                                                .equals(payment.getId())) {
+
+                                        throw conflict(
+                                                        "Refund idempotency key is already used for another payment");
+                                }
+
+                                return concurrentByIdempotency;
+                        }
+
+                        throw conflict(
+                                        "Another refund request was created concurrently");
+                }
+
+                audit(
+                                refund,
+                                source,
+                                "REFUND_REQUESTED",
+                                null,
+                                RefundStatus.REQUESTED,
+                                null,
+                                reason.name());
+
+                return refund;
         }
-        if (isBlank(payment.getProviderPaymentId())) {
-            throw conflict("The captured gateway payment reference is unavailable");
+
+        private PaymentRefund submit(
+                        PaymentRefund refund,
+                        PaymentTransaction payment,
+                        RefundSource source) {
+
+                if (refund.getStatus() == RefundStatus.COMPLETED) {
+
+                        return refund;
+                }
+
+                try {
+
+                        /*
+                         * -------------------------------------------------------------
+                         * PHONEPE
+                         * -------------------------------------------------------------
+                         */
+                        if (refund.getProvider() == PaymentProvider.PHONEPE) {
+
+                                PhonePeClient.RefundResult result = phonePeClient.createRefund(
+                                                refund.getMerchantRefundId(),
+                                                payment.getMerchantOrderId(),
+                                                refund.getAmountPaise());
+
+                                return applyPhonePeResult(
+                                                refund,
+                                                payment,
+                                                result,
+                                                source,
+                                                null);
+                        }
+
+                        /*
+                         * -------------------------------------------------------------
+                         * RAZORPAY
+                         * -------------------------------------------------------------
+                         */
+                        if (isBlank(
+                                        payment.getProviderPaymentId())) {
+
+                                throw new ResponseStatusException(
+                                                HttpStatus.CONFLICT,
+                                                "Razorpay payment reference is unavailable");
+                        }
+
+                        RazorpayRefundClient.RefundResult result = razorpayRefundClient.createFullRefund(
+                                        payment.getProviderPaymentId(),
+                                        refund.getAmountPaise(),
+                                        refund.getIdempotencyKey(),
+                                        refund.getMerchantRefundId());
+
+                        return applyRazorpayResult(
+                                        refund,
+                                        payment,
+                                        result,
+                                        source,
+                                        null);
+
+                } catch (PhonePeClient.RefundGatewayException exception) {
+
+                        return handlePhonePeFailure(
+                                        refund,
+                                        source,
+                                        exception);
+
+                } catch (RefundGatewayException exception) {
+
+                        return handleRazorpayFailure(
+                                        refund,
+                                        source,
+                                        exception);
+
+                } catch (ResponseStatusException exception) {
+
+                        RefundStatus oldStatus = refund.getStatus();
+
+                        refund.setStatus(
+                                        RefundStatus.PENDING);
+
+                        scheduleRetry(
+                                        refund,
+                                        "REFUND_SUBMISSION_UNCONFIRMED",
+                                        "The gateway did not confirm the refund request");
+
+                        refund = refundRepository.save(
+                                        refund);
+
+                        audit(
+                                        refund,
+                                        source,
+                                        "REFUND_SUBMISSION_UNCONFIRMED",
+                                        oldStatus,
+                                        refund.getStatus(),
+                                        null,
+                                        safeReason(exception));
+
+                        return refund;
+                }
         }
-        return payment;
-    }
 
-    private PaymentTransaction requirePayment(Long paymentOrderId) {
-        return paymentRepository.findById(paymentOrderId)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Payment record not found"));
-    }
+        private PaymentRefund handleRazorpayFailure(
+                        PaymentRefund refund,
+                        RefundSource source,
+                        RefundGatewayException exception) {
 
-    private PaymentRefund requireRefund(Long refundId) {
-        return refundRepository.findById(refundId)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Refund record not found"));
-    }
+                RefundStatus oldStatus = refund.getStatus();
 
-    private Users requireAdmin() {
-        Users user = currentUserService.requireUser();
-        if (user.getRole() == null
-                || !"ADMIN".equalsIgnoreCase(user.getRole())) {
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "Administrator access is required");
+                refund.setFailureCode(
+                                truncate(
+                                                exception.getGatewayCode(),
+                                                100));
+
+                refund.setFailureReason(
+                                truncate(
+                                                exception.getMessage(),
+                                                500));
+
+                refund.setLastReconciledAt(
+                                LocalDateTime.now());
+
+                refund.setReconcileAttempts(
+                                value(
+                                                refund.getReconcileAttempts())
+                                                + 1);
+
+                if (exception.getKind() == FailureKind.DEFINITIVE) {
+
+                        refund.setStatus(
+                                        RefundStatus.FAILED);
+
+                        refund.setNextReconcileAt(null);
+
+                } else {
+
+                        refund.setStatus(
+                                        RefundStatus.PENDING);
+
+                        refund.setNextReconcileAt(
+                                        nextRetryAt(
+                                                        refund.getReconcileAttempts()));
+                }
+
+                refund = refundRepository.save(
+                                refund);
+
+                audit(
+                                refund,
+                                source,
+                                exception.getKind() == FailureKind.DEFINITIVE
+                                                ? "REFUND_REJECTED"
+                                                : "REFUND_UNCONFIRMED",
+                                oldStatus,
+                                refund.getStatus(),
+                                null,
+                                exception.getMessage());
+
+                return refund;
         }
-        return user;
-    }
 
-    private void validateRequest(CreateRefundRequest request) {
-        if (request == null
-                || request.getIdempotencyKey() == null
-                || !request.getIdempotencyKey()
-                        .matches("[A-Za-z0-9_-]{16,64}")) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "A valid refund idempotency key is required");
+        private PaymentRefund handlePhonePeFailure(
+                        PaymentRefund refund,
+                        RefundSource source,
+                        PhonePeClient.RefundGatewayException exception) {
+
+                RefundStatus oldStatus = refund.getStatus();
+
+                refund.setFailureCode(
+                                truncate(
+                                                exception.getGatewayCode(),
+                                                100));
+
+                refund.setFailureReason(
+                                truncate(
+                                                exception.getMessage(),
+                                                500));
+
+                refund.setLastReconciledAt(
+                                LocalDateTime.now());
+
+                refund.setReconcileAttempts(
+                                value(
+                                                refund.getReconcileAttempts())
+                                                + 1);
+
+                if (exception.getKind() == PhonePeClient.RefundFailureKind.DEFINITIVE) {
+
+                        refund.setStatus(
+                                        RefundStatus.FAILED);
+
+                        refund.setNextReconcileAt(null);
+
+                } else {
+
+                        /*
+                         * RETRYABLE and AMBIGUOUS remain PENDING.
+                         *
+                         * AMBIGUOUS is particularly important because the original
+                         * refund POST may have succeeded even though the response
+                         * was lost.
+                         */
+                        refund.setStatus(
+                                        RefundStatus.PENDING);
+
+                        refund.setNextReconcileAt(
+                                        nextRetryAt(
+                                                        refund.getReconcileAttempts()));
+                }
+
+                refund = refundRepository.save(
+                                refund);
+
+                audit(
+                                refund,
+                                source,
+                                exception.getKind() == PhonePeClient.RefundFailureKind.DEFINITIVE
+                                                ? "REFUND_REJECTED"
+                                                : "REFUND_UNCONFIRMED",
+                                oldStatus,
+                                refund.getStatus(),
+                                null,
+                                exception.getMessage());
+
+                return refund;
         }
-        if (request.getNote() != null && request.getNote().length() > 500) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Refund note cannot exceed 500 characters");
+
+        private boolean isPhonePeRefundNotFound(
+                        PhonePeClient.RefundGatewayException exception) {
+
+                return exception != null
+                                && PHONEPE_NOT_FOUND_CODE.equals(
+                                                exception.getGatewayCode());
         }
-    }
 
-    private void audit(
-            PaymentRefund refund,
-            RefundSource source,
-            String eventType,
-            RefundStatus oldStatus,
-            RefundStatus newStatus,
-            String gatewayEventId,
-            String details) {
-        try {
-            eventRepository.saveAndFlush(PaymentRefundEvent.builder()
-                    .refundId(refund.getId())
-                    .paymentOrderId(refund.getPaymentOrderId())
-                    .source(source)
-                    .eventType(eventType)
-                    .oldStatus(oldStatus)
-                    .newStatus(newStatus)
-                    .gatewayEventId(gatewayEventId)
-                    .details(truncate(details, 1000))
-                    .build());
-        } catch (DataIntegrityViolationException duplicateEvent) {
-            // Re-delivered gateway events are expected and must be idempotent.
+        private PaymentRefund resetForRetry(
+                        PaymentRefund refund) {
+
+                String previousReference = firstNonBlank(
+                                refund.getProviderRefundId(),
+                                refund.getMerchantRefundId());
+
+                RefundStatus oldStatus = refund.getStatus();
+
+                refund.setStatus(
+                                RefundStatus.REQUESTED);
+
+                /*
+                 * Generate a new merchant refund reference for a deliberate
+                 * admin retry after a definitive failure.
+                 */
+                refund.setMerchantRefundId(
+                                merchantRefundId());
+
+                refund.setIdempotencyKey(
+                                "rr_"
+                                                + refund.getId()
+                                                + "_"
+                                                + UUID.randomUUID()
+                                                                .toString()
+                                                                .replace(
+                                                                                "-",
+                                                                                ""));
+
+                refund.setProviderRefundId(null);
+                refund.setProviderState(null);
+                refund.setFailureCode(null);
+                refund.setFailureReason(null);
+
+                /*
+                 * Prevent the scheduler from processing this refund while the
+                 * synchronous admin retry communicates with the gateway.
+                 */
+                refund.setNextReconcileAt(
+                                LocalDateTime.now()
+                                                .plusMinutes(2));
+
+                PaymentRefund savedRefund = refundRepository.saveAndFlush(
+                                refund);
+
+                audit(
+                                savedRefund,
+                                RefundSource.ADMIN,
+                                "REFUND_RETRY_REQUESTED",
+                                oldStatus,
+                                RefundStatus.REQUESTED,
+                                null,
+                                "Previous gateway reference: "
+                                                + previousReference);
+
+                return savedRefund;
         }
-    }
 
-    private String merchantRefundId() {
-        return "ZRF_"
-                + UUID.randomUUID().toString().replace("-", "");
-    }
+        private PaymentRefund applyPhonePeResult(
+                        PaymentRefund refund,
+                        PaymentTransaction payment,
+                        PhonePeClient.RefundResult result,
+                        RefundSource source,
+                        String gatewayEventId) {
 
-    private String text(JsonNode node, String field) {
-        if (node == null || node.isMissingNode() || node.isNull()) {
-            return null;
+                return applyResult(
+                                refund,
+                                payment,
+                                result.refundId(),
+                                result.state(),
+                                result.amountPaise(),
+                                result.failureCode(),
+                                result.failureReason(),
+                                mapPhonePeStatus(
+                                                result.state()),
+                                source,
+                                gatewayEventId);
         }
-        JsonNode value = node.get(field);
-        return value == null || value.isNull() || value.asText().isBlank()
-                ? null
-                : value.asText();
-    }
 
-    private String firstNonBlank(String first, String second) {
-        return !isBlank(first) ? first : second;
-    }
+        private PaymentRefund applyRazorpayResult(
+                        PaymentRefund refund,
+                        PaymentTransaction payment,
+                        RazorpayRefundClient.RefundResult result,
+                        RefundSource source,
+                        String gatewayEventId) {
 
-    private boolean isBlank(String value) {
-        return value == null || value.isBlank();
-    }
-
-    private int value(Integer number) {
-        return number == null ? 0 : number;
-    }
-
-    private String truncate(String value, int length) {
-        if (value == null || value.length() <= length) {
-            return value;
+                return applyResult(
+                                refund,
+                                payment,
+                                result.refundId(),
+                                result.state(),
+                                result.amountPaise(),
+                                result.failureCode(),
+                                result.failureReason(),
+                                mapRazorpayStatus(
+                                                result.state()),
+                                source,
+                                gatewayEventId);
         }
-        return value.substring(0, length);
-    }
 
-    private String safeReason(ResponseStatusException exception) {
-        return firstNonBlank(
-                exception.getReason(),
-                exception.getStatusCode().toString());
-    }
+        private PaymentRefund applyResult(
+                        PaymentRefund refund,
+                        PaymentTransaction payment,
+                        String providerRefundId,
+                        String providerState,
+                        long amountPaise,
+                        String failureCode,
+                        String failureReason,
+                        RefundStatus newStatus,
+                        RefundSource source,
+                        String gatewayEventId) {
 
-    private ResponseStatusException conflict(String message) {
-        return new ResponseStatusException(HttpStatus.CONFLICT, message);
-    }
+                RefundStatus oldStatus = refund.getStatus();
+
+                /*
+                 * COMPLETED is terminal.
+                 */
+                if (oldStatus == RefundStatus.COMPLETED) {
+                        return refund;
+                }
+
+                /*
+                 * REVIEW_REQUIRED is terminal until an explicit admin decision
+                 * resolves the mismatch.
+                 */
+                if (oldStatus == RefundStatus.REVIEW_REQUIRED) {
+
+                        return refund;
+                }
+
+                /*
+                 * Do not allow an old/stale provider response to move a FAILED
+                 * refund back into REQUESTED/PENDING.
+                 */
+                if (oldStatus == RefundStatus.FAILED
+                                && (newStatus == RefundStatus.REQUESTED
+                                                || newStatus == RefundStatus.PENDING)) {
+
+                        return refund;
+                }
+
+                /*
+                 * A completed refund must match the exact requested amount.
+                 */
+                if (newStatus == RefundStatus.COMPLETED
+                                && amountPaise != refund.getAmountPaise()) {
+
+                        newStatus = RefundStatus.REVIEW_REQUIRED;
+
+                        failureCode = "REFUND_AMOUNT_MISMATCH";
+
+                        failureReason = "Gateway refund amount does not match the requested refund";
+                }
+
+                /*
+                 * Never mark a refund COMPLETED without a provider-side refund
+                 * reference.
+                 */
+                if (newStatus == RefundStatus.COMPLETED
+                                && isBlank(providerRefundId)
+                                && isBlank(
+                                                refund.getProviderRefundId())) {
+
+                        newStatus = RefundStatus.REVIEW_REQUIRED;
+
+                        failureCode = "REFUND_REFERENCE_MISSING";
+
+                        failureReason = "Gateway reported a completed refund without a refund reference";
+                }
+
+                /*
+                 * Once we have a provider refund ID, it must never silently change.
+                 */
+                if (!isBlank(providerRefundId)) {
+
+                        if (!isBlank(
+                                        refund.getProviderRefundId())
+                                        && !refund.getProviderRefundId()
+                                                        .equals(
+                                                                        providerRefundId)) {
+
+                                newStatus = RefundStatus.REVIEW_REQUIRED;
+
+                                failureCode = "REFUND_ID_MISMATCH";
+
+                                failureReason = "Gateway refund reference changed unexpectedly";
+
+                        } else {
+
+                                refund.setProviderRefundId(
+                                                providerRefundId);
+                        }
+                }
+
+                refund.setProviderState(
+                                providerState);
+
+                refund.setStatus(
+                                newStatus);
+
+                refund.setFailureCode(
+                                failureCode);
+
+                refund.setFailureReason(
+                                truncate(
+                                                failureReason,
+                                                500));
+
+                refund.setLastReconciledAt(
+                                LocalDateTime.now());
+
+                refund.setReconcileAttempts(
+                                value(
+                                                refund.getReconcileAttempts())
+                                                + 1);
+
+                if (newStatus == RefundStatus.COMPLETED) {
+
+                        refund.setCompletedAt(
+                                        refund.getCompletedAt() == null
+                                                        ? LocalDateTime.now()
+                                                        : refund.getCompletedAt());
+
+                        refund.setNextReconcileAt(
+                                        null);
+
+                        /*
+                         * A successful refund clears the previous failure information.
+                         */
+                        refund.setFailureCode(null);
+                        refund.setFailureReason(null);
+
+                        /*
+                         * Only now is the payment itself marked REFUNDED.
+                         */
+                        payment.setStatus(
+                                        PaymentStatus.REFUNDED);
+
+                        payment.setFailureCode(null);
+                        payment.setFailureReason(null);
+
+                        paymentRepository.save(
+                                        payment);
+
+                } else if (newStatus == RefundStatus.FAILED
+                                || newStatus == RefundStatus.REVIEW_REQUIRED) {
+
+                        refund.setNextReconcileAt(
+                                        null);
+
+                } else {
+
+                        refund.setNextReconcileAt(
+                                        nextRetryAt(
+                                                        refund.getReconcileAttempts()));
+                }
+
+                refund = refundRepository.save(
+                                refund);
+
+                audit(
+                                refund,
+                                source,
+                                "REFUND_STATUS_UPDATED",
+                                oldStatus,
+                                newStatus,
+                                gatewayEventId,
+                                firstNonBlank(
+                                                providerState,
+                                                newStatus.name()));
+
+                return refund;
+        }
+
+        private RefundStatus mapPhonePeStatus(
+                        String state) {
+
+                if ("COMPLETED".equalsIgnoreCase(state)) {
+                        return RefundStatus.COMPLETED;
+                }
+
+                if ("FAILED".equalsIgnoreCase(state)) {
+                        return RefundStatus.FAILED;
+                }
+
+                return RefundStatus.PENDING;
+        }
+
+        private RefundStatus mapRazorpayStatus(
+                        String state) {
+
+                if ("processed".equalsIgnoreCase(state)) {
+                        return RefundStatus.COMPLETED;
+                }
+
+                if ("failed".equalsIgnoreCase(state)) {
+                        return RefundStatus.FAILED;
+                }
+
+                return RefundStatus.PENDING;
+        }
+
+        private void scheduleRetry(
+                        PaymentRefund refund,
+                        String failureCode,
+                        String failureReason) {
+
+                int attempts = value(
+                                refund.getReconcileAttempts())
+                                + 1;
+
+                refund.setReconcileAttempts(
+                                attempts);
+
+                refund.setLastReconciledAt(
+                                LocalDateTime.now());
+
+                refund.setNextReconcileAt(
+                                nextRetryAt(attempts));
+
+                refund.setFailureCode(
+                                failureCode);
+
+                refund.setFailureReason(
+                                truncate(
+                                                failureReason,
+                                                500));
+        }
+
+        private void markRefundForReview(
+                        PaymentRefund refund,
+                        RefundSource source,
+                        String gatewayEventId,
+                        String failureCode,
+                        String failureReason) {
+
+                RefundStatus oldStatus = refund.getStatus();
+
+                refund.setStatus(
+                                RefundStatus.REVIEW_REQUIRED);
+
+                refund.setFailureCode(
+                                failureCode);
+
+                refund.setFailureReason(
+                                truncate(
+                                                failureReason,
+                                                500));
+
+                refund.setLastReconciledAt(
+                                LocalDateTime.now());
+
+                refund.setNextReconcileAt(
+                                null);
+
+                refund = refundRepository.save(
+                                refund);
+
+                audit(
+                                refund,
+                                source,
+                                "REFUND_REVIEW_REQUIRED",
+                                oldStatus,
+                                RefundStatus.REVIEW_REQUIRED,
+                                gatewayEventId,
+                                failureReason);
+        }
+
+        private LocalDateTime nextRetryAt(
+                        int attempts) {
+
+                int seconds = switch (attempts) {
+                        case 0, 1 -> 15;
+                        case 2 -> 30;
+                        case 3 -> 60;
+                        case 4 -> 300;
+                        default -> 900;
+                };
+
+                return LocalDateTime.now()
+                                .plusSeconds(seconds);
+        }
+
+        private PaymentTransaction requireRefundablePayment(
+                        Long paymentOrderId) {
+
+                PaymentTransaction payment = requirePayment(paymentOrderId);
+
+                if (payment.getStatus() == PaymentStatus.REFUNDED) {
+
+                        throw conflict(
+                                        "This payment has already been refunded");
+                }
+
+                if (payment.getStatus() != PaymentStatus.PAID
+                                && payment.getStatus() != PaymentStatus.REVIEW_REQUIRED) {
+
+                        throw conflict(
+                                        "Only a captured or review-required payment can be refunded");
+                }
+
+                if (isBlank(
+                                payment.getProviderPaymentId())) {
+
+                        throw conflict(
+                                        "The captured gateway payment reference is unavailable");
+                }
+
+                return payment;
+        }
+
+        private PaymentTransaction requirePayment(
+                        Long paymentOrderId) {
+
+                return paymentRepository
+                                .findById(paymentOrderId)
+                                .orElseThrow(
+                                                () -> new ResponseStatusException(
+                                                                HttpStatus.NOT_FOUND,
+                                                                "Payment record not found"));
+        }
+
+        private PaymentRefund requireRefund(
+                        Long refundId) {
+
+                return refundRepository
+                                .findById(refundId)
+                                .orElseThrow(
+                                                () -> new ResponseStatusException(
+                                                                HttpStatus.NOT_FOUND,
+                                                                "Refund record not found"));
+        }
+
+        private Users requireAdmin() {
+
+                Users user = currentUserService.requireUser();
+
+                if (user.getRole() == null
+                                || !"ADMIN".equalsIgnoreCase(
+                                                user.getRole())) {
+
+                        throw new ResponseStatusException(
+                                        HttpStatus.FORBIDDEN,
+                                        "Administrator access is required");
+                }
+
+                return user;
+        }
+
+        private void validateRequest(
+                        CreateRefundRequest request) {
+
+                if (request == null
+                                || request.getIdempotencyKey() == null
+                                || !request.getIdempotencyKey()
+                                                .matches(
+                                                                "[A-Za-z0-9_-]{16,64}")) {
+
+                        throw new ResponseStatusException(
+                                        HttpStatus.BAD_REQUEST,
+                                        "A valid refund idempotency key is required");
+                }
+
+                if (request.getNote() != null
+                                && request.getNote().length() > 500) {
+
+                        throw new ResponseStatusException(
+                                        HttpStatus.BAD_REQUEST,
+                                        "Refund note cannot exceed 500 characters");
+                }
+        }
+
+        private void audit(
+                        PaymentRefund refund,
+                        RefundSource source,
+                        String eventType,
+                        RefundStatus oldStatus,
+                        RefundStatus newStatus,
+                        String gatewayEventId,
+                        String details) {
+
+                try {
+
+                        eventRepository.saveAndFlush(
+                                        PaymentRefundEvent.builder()
+                                                        .refundId(
+                                                                        refund.getId())
+                                                        .paymentOrderId(
+                                                                        refund.getPaymentOrderId())
+                                                        .source(source)
+                                                        .eventType(eventType)
+                                                        .oldStatus(oldStatus)
+                                                        .newStatus(newStatus)
+                                                        .gatewayEventId(
+                                                                        gatewayEventId)
+                                                        .details(
+                                                                        truncate(
+                                                                                        details,
+                                                                                        1000))
+                                                        .build());
+
+                } catch (DataIntegrityViolationException duplicateEvent) {
+
+                        /*
+                         * Re-delivered gateway events are expected and must remain
+                         * idempotent.
+                         */
+                }
+        }
+
+        private String merchantRefundId() {
+
+                return "ZRF_"
+                                + UUID.randomUUID()
+                                                .toString()
+                                                .replace(
+                                                                "-",
+                                                                "");
+        }
+
+        private String text(
+                        JsonNode node,
+                        String field) {
+
+                if (node == null
+                                || node.isMissingNode()
+                                || node.isNull()) {
+
+                        return null;
+                }
+
+                JsonNode value = node.get(field);
+
+                return value == null
+                                || value.isNull()
+                                || value.asText().isBlank()
+                                                ? null
+                                                : value.asText();
+        }
+
+        private String firstNonBlank(
+                        String first,
+                        String second) {
+
+                return !isBlank(first)
+                                ? first
+                                : second;
+        }
+
+        private boolean isBlank(
+                        String value) {
+
+                return value == null
+                                || value.isBlank();
+        }
+
+        private int value(
+                        Integer number) {
+
+                return number == null
+                                ? 0
+                                : number;
+        }
+
+        private String truncate(
+                        String value,
+                        int length) {
+
+                if (value == null
+                                || value.length() <= length) {
+
+                        return value;
+                }
+
+                return value.substring(
+                                0,
+                                length);
+        }
+
+        private String safeReason(
+                        ResponseStatusException exception) {
+
+                return firstNonBlank(
+                                exception.getReason(),
+                                exception.getStatusCode()
+                                                .toString());
+        }
+
+        private ResponseStatusException conflict(
+                        String message) {
+
+                return new ResponseStatusException(
+                                HttpStatus.CONFLICT,
+                                message);
+        }
 }

@@ -28,20 +28,19 @@ import lombok.Setter;
 
 @Entity
 @Table(name = "payment_refunds", uniqueConstraints = {
-        @UniqueConstraint(
-                name = "uk_refund_payment_order",
-                columnNames = "payment_order_id"),
-        @UniqueConstraint(
-                name = "uk_refund_merchant_refund",
-                columnNames = "merchant_refund_id"),
-        @UniqueConstraint(
-                name = "uk_refund_idempotency",
-                columnNames = "idempotency_key"),
-        @UniqueConstraint(
-                name = "uk_refund_provider_refund",
-                columnNames = { "provider", "provider_refund_id" })
+        @UniqueConstraint(name = "uk_refund_payment_order", columnNames = "payment_order_id"),
+
+        @UniqueConstraint(name = "uk_refund_merchant_refund", columnNames = "merchant_refund_id"),
+
+        @UniqueConstraint(name = "uk_refund_idempotency", columnNames = "idempotency_key"),
+
+        @UniqueConstraint(name = "uk_refund_provider_refund", columnNames = {
+                "provider",
+                "provider_refund_id"
+        })
 }, indexes = {
         @Index(name = "idx_refund_status_next", columnList = "status,next_reconcile_at"),
+
         @Index(name = "idx_refund_payment_order", columnList = "payment_order_id")
 })
 @Getter
@@ -55,6 +54,11 @@ public class PaymentRefund {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /**
+     * Internal payment transaction ID.
+     *
+     * One payment may have at most one refund record.
+     */
     @Column(name = "payment_order_id", nullable = false)
     private Long paymentOrderId;
 
@@ -76,21 +80,44 @@ public class PaymentRefund {
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal amount;
 
+    /**
+     * Gateway amount in the smallest currency unit.
+     *
+     * This is the authoritative amount used when communicating with
+     * PhonePe/Razorpay.
+     */
     @Column(name = "amount_paise", nullable = false)
     private Long amountPaise;
 
     @Column(nullable = false, length = 3)
     private String currency;
 
+    /**
+     * Stable internal refund reference.
+     *
+     * This MUST NOT change during normal reconciliation because it is
+     * used to recover an ambiguous gateway submission.
+     */
     @Column(name = "merchant_refund_id", nullable = false, length = 63)
     private String merchantRefundId;
 
+    /**
+     * Provider-generated refund reference.
+     *
+     * Null until the gateway confirms/returns a refund reference.
+     */
     @Column(name = "provider_refund_id", length = 120)
     private String providerRefundId;
 
     @Column(name = "provider_state", length = 50)
     private String providerState;
 
+    /**
+     * Application-level idempotency key.
+     *
+     * For an initial admin request this comes from the client.
+     * For an explicit retry, PaymentRefundService generates a new key.
+     */
     @Column(name = "idempotency_key", nullable = false, length = 64)
     private String idempotencyKey;
 
@@ -109,9 +136,16 @@ public class PaymentRefund {
     @Column(name = "failure_reason", length = 500)
     private String failureReason;
 
+    /**
+     * Number of provider submission/reconciliation attempts.
+     */
     @Column(name = "reconcile_attempts", nullable = false)
     private Integer reconcileAttempts;
 
+    /**
+     * Scheduler should only process the refund when this timestamp
+     * has been reached.
+     */
     @Column(name = "next_reconcile_at")
     private LocalDateTime nextReconcileAt;
 
@@ -121,12 +155,21 @@ public class PaymentRefund {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
+    /**
+     * Last webhook identifier/event value received from the provider.
+     */
     @Column(name = "last_webhook_event", length = 120)
     private String lastWebhookEvent;
 
     @Column(name = "last_webhook_at")
     private LocalDateTime lastWebhookAt;
 
+    /**
+     * Optimistic locking.
+     *
+     * Critical for preventing two scheduler/webhook/admin requests from
+     * simultaneously modifying the same refund record.
+     */
     @Version
     @Column(nullable = false)
     private Long version;
@@ -139,13 +182,26 @@ public class PaymentRefund {
 
     @PrePersist
     void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = createdAt;
+        LocalDateTime now = LocalDateTime.now();
+
+        if (createdAt == null) {
+            createdAt = now;
+        }
+
+        if (updatedAt == null) {
+            updatedAt = createdAt;
+        }
+
         if (automaticRefund == null) {
             automaticRefund = false;
         }
+
         if (reconcileAttempts == null) {
             reconcileAttempts = 0;
+        }
+
+        if (version == null) {
+            version = 0L;
         }
     }
 

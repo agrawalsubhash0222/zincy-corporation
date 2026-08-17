@@ -1,42 +1,15 @@
 declare module 'react-native-razorpay' {
-    export type RazorpayOptions = {
-        key: string;
-        amount: number | string;
-        currency: string;
-        name: string;
-        description?: string;
-        order_id: string;
+  type RazorpayCheckoutOptions = Record<string, unknown>;
 
-        theme?: {
-            color?: string;
-        };
+  type RazorpayCheckoutSuccess = {
+    razorpay_payment_id: string;
+    razorpay_order_id: string;
+    razorpay_signature: string;
+  };
 
-        retry?: {
-            enabled?: boolean;
-            max_count?: number;
-        };
+  const RazorpayCheckout: {
+    open(options: RazorpayCheckoutOptions): Promise<RazorpayCheckoutSuccess>;
+  };
 
-        method?: {
-            upi?: boolean;
-            netbanking?: boolean;
-            card?: boolean;
-            wallet?: boolean;
-            emi?: boolean;
-            paylater?: boolean;
-        };
-    };
-
-    export type RazorpaySuccessResponse = {
-        razorpay_payment_id: string;
-        razorpay_order_id: string;
-        razorpay_signature: string;
-    };
-
-    const RazorpayCheckout: {
-        open(
-            options: RazorpayOptions
-        ): Promise<RazorpaySuccessResponse>;
-    };
-
-    export default RazorpayCheckout;
+  export default RazorpayCheckout;
 }

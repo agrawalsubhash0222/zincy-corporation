@@ -21,6 +21,9 @@ public class CreatePaymentOrderResponse {
     private String providerOrderId;
     private String publicKey;
     private String checkoutUrl;
+    private String phonePeSdkToken;
+    private String phonePeMerchantId;
+    private String phonePeEnvironment;
     private Long amountPaise;
     private BigDecimal amount;
     private String currency;

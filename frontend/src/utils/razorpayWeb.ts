@@ -66,25 +66,39 @@ export async function openRazorpayCardCheckout(options: {
 
     return new Promise((resolve, reject) => {
         const Razorpay = window.Razorpay;
+        let settled = false;
+        let checkout: RazorpayInstance;
         if (!Razorpay) {
             reject(new Error('Secure card checkout is unavailable.'));
             return;
         }
 
-        const checkout = new Razorpay({
+        const finish = (result: RazorpaySuccess | null) => {
+            if (settled) return;
+            settled = true;
+            resolve(result);
+        };
+
+        const fail = (error: Error) => {
+            if (settled) return;
+            settled = true;
+            reject(error);
+        };
+
+        checkout = new Razorpay({
             key: options.key,
             order_id: options.orderId,
             amount: options.amountPaise,
             currency: options.currency,
             name: options.businessName,
             description: options.description,
-            handler: (response: RazorpaySuccess) => resolve(response),
+            handler: (response: RazorpaySuccess) => finish(response),
             modal: {
                 // Some Razorpay web flows close the modal after a successful
                 // bank response without invoking the handler. The caller will
                 // securely reconcile the order with Razorpay before deciding
                 // whether this was a success or a cancellation.
-                ondismiss: () => resolve(null),
+                ondismiss: () => finish(null),
             },
             // A failed gateway attempt is terminal in Zincy's database. Do
             // not let Checkout retry the same Razorpay order after that row
@@ -119,7 +133,7 @@ export async function openRazorpayCardCheckout(options: {
             );
             // Reject first so modal.ondismiss cannot turn a known failure
             // into a cancellation result while close() is firing.
-            reject(error);
+            fail(error);
             checkout.close();
         });
         checkout.open();

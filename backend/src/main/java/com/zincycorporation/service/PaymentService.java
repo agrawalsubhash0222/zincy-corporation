@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
@@ -17,6 +18,7 @@ import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -56,11 +58,11 @@ public class PaymentService {
     private static final String CURRENCY = "INR";
     private static final int MAX_ORDER_REQUESTS_PER_MINUTE = 10;
     private static final int ACTIVE_ORDER_TTL_MINUTES = 15;
-    private static final List<PaymentStatus> ACTIVE_PAYMENT_STATUSES =
-            List.of(PaymentStatus.CREATED, PaymentStatus.PENDING);
+    private static final String PHONEPE_SDK_TOKEN_PREFIX = "phonepe-sdk:";
+    private static final List<PaymentStatus> ACTIVE_PAYMENT_STATUSES = List.of(PaymentStatus.CREATED,
+            PaymentStatus.PENDING);
 
-    private final ConcurrentHashMap<Long, Deque<Long>> orderRequestWindows =
-            new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, Deque<Long>> orderRequestWindows = new ConcurrentHashMap<>();
 
     private final RazorpayClient razorpayClient;
     private final PhonePeClient phonePeClient;
@@ -89,6 +91,9 @@ public class PaymentService {
 
     @Value("${payment.reconciliation.terminal-grace-hours:24}")
     private int terminalReconciliationGraceHours;
+
+    @Value("${payment.cancel-retry-grace-seconds:120}")
+    private int cancelRetryGraceSeconds;
 
     public CreatePaymentOrderResponse createOrder(
             CreatePaymentOrderRequest request) {
@@ -133,10 +138,16 @@ public class PaymentService {
                 .setScale(0, RoundingMode.HALF_UP)
                 .longValueExact();
 
-        PaymentProvider provider = request.getPreferredMethod()
-                == PaymentMethod.PHONEPE
-                        ? PaymentProvider.PHONEPE
-                        : PaymentProvider.RAZORPAY;
+        PaymentProvider provider = request.getPreferredMethod() == PaymentMethod.PHONEPE
+                ? PaymentProvider.PHONEPE
+                : PaymentProvider.RAZORPAY;
+
+        // Reject a deterministic local configuration problem before a DB row
+        // is created. A missing Razorpay key is not an uncertain gateway
+        // outcome and must not leave the onboarding request blocked in review.
+        if (provider == PaymentProvider.RAZORPAY) {
+            ensureRazorpayConfigured();
+        }
 
         PaymentTransaction payment;
         try {
@@ -184,7 +195,10 @@ public class PaymentService {
 
         try {
             if (provider == PaymentProvider.PHONEPE) {
-                createPhonePeOrder(payment, currentUser);
+                createPhonePeOrder(
+                        payment,
+                        currentUser,
+                        request.getClientPlatform());
             } else {
                 createRazorpayOrder(payment);
             }
@@ -255,24 +269,83 @@ public class PaymentService {
             throw badRequest("Payment signature verification failed");
         }
 
-        payment.setProviderPaymentId(request.getRazorpayPaymentId());
-        paymentRepository.save(payment);
+        // Terminal callbacks are idempotent only after the callback has been
+        // authenticated. This prevents a caller from using arbitrary provider
+        // identifiers to probe or replay an already terminal payment.
+        if (payment.getStatus() == PaymentStatus.REFUNDED) {
+            return toResponse(payment);
+        }
+        if (payment.getStatus() == PaymentStatus.REVIEW_REQUIRED) {
+            throw paymentConflict(
+                    "Payment is under refund review and cannot be verified");
+        }
 
-        return toResponse(refreshRazorpay(payment));
+        if (payment.getStatus() == PaymentStatus.FAILED
+                || payment.getStatus() == PaymentStatus.EXPIRED) {
+            // A signed success callback may arrive after the customer closed
+            // checkout or after a local expiry. Do not reactivate the row;
+            // provider refresh below will classify a captured result as a
+            // late capture and trigger the existing automatic-refund path.
+            try {
+                return toResponse(refreshRazorpayByPaymentId(
+                        payment,
+                        request.getRazorpayPaymentId()));
+            } catch (ObjectOptimisticLockingFailureException exception) {
+                return getStatus(payment.getId(), true);
+            }
+        }
+
+        if (payment.getStatus() == PaymentStatus.PAID) {
+            // Success callbacks may be replayed after a slow native return.
+            // Return the already verified result only after checking the
+            // replayed signature and provider payment identity.
+            if (isBlank(payment.getProviderPaymentId())
+                    || payment.getProviderPaymentId()
+                            .equals(request.getRazorpayPaymentId())) {
+                return toResponse(payment);
+            }
+            throw paymentConflict(
+                    "Payment is already completed with another payment ID");
+        }
+
+        if (!isBlank(payment.getProviderPaymentId())
+                && !payment.getProviderPaymentId()
+                        .equals(request.getRazorpayPaymentId())) {
+            throw paymentConflict(
+                    "Another provider payment is already linked to this order");
+        }
+
+        payment.setProviderPaymentId(request.getRazorpayPaymentId());
+        try {
+            paymentRepository.saveAndFlush(payment);
+            return toResponse(refreshRazorpay(payment));
+        } catch (ObjectOptimisticLockingFailureException exception) {
+            // Status polling, a webhook or the reconciliation job may have
+            // updated this same row while the native/web callback was being
+            // verified. Reload from the provider instead of returning a 500.
+            return getStatus(payment.getId(), true);
+        }
     }
 
     public PaymentResponse getStatus(Long paymentRecordId, boolean refresh) {
-        PaymentTransaction payment = requireOwnedPayment(paymentRecordId);
+        try {
+            PaymentTransaction payment = requireOwnedPayment(paymentRecordId);
 
-        if (refresh && shouldRefresh(payment)) {
-            payment = payment.getProvider() == PaymentProvider.PHONEPE
-                    ? refreshPhonePe(payment)
-                    : refreshRazorpay(payment);
-        } else if (refresh) {
-            paymentRefundService.refreshByPaymentOrderId(payment.getId());
+            if (refresh && shouldRefresh(payment)) {
+                payment = payment.getProvider() == PaymentProvider.PHONEPE
+                        ? refreshPhonePe(payment)
+                        : refreshRazorpay(payment);
+                payment = expireAfterProviderCheckIfDue(payment);
+            } else if (refresh) {
+                paymentRefundService.refreshByPaymentOrderId(payment.getId());
+            }
+
+            return toResponse(payment);
+        } catch (ObjectOptimisticLockingFailureException exception) {
+            // A concurrent verifier/webhook won the update. Its committed row
+            // is authoritative and the client may safely poll again.
+            return toResponse(requireOwnedPayment(paymentRecordId));
         }
-
-        return toResponse(payment);
     }
 
     /**
@@ -282,40 +355,20 @@ public class PaymentService {
      * sent through the existing automatic-refund path.
      */
     public PaymentResponse abandonPayment(Long paymentRecordId) {
-        PaymentTransaction payment = requireOwnedPayment(paymentRecordId);
+        return abandonPayment(paymentRecordId, false);
+    }
 
-        if (payment.getStatus() == PaymentStatus.PAID
-                || payment.getStatus() == PaymentStatus.REFUNDED
-                || payment.getStatus() == PaymentStatus.REVIEW_REQUIRED) {
-            return toResponse(payment);
+    public PaymentResponse abandonPayment(
+            Long paymentRecordId,
+            boolean customerCancelled) {
+        try {
+            return abandonPaymentOnce(paymentRecordId, customerCancelled);
+        } catch (ObjectOptimisticLockingFailureException exception) {
+            // A webhook/status refresh completed at the same moment. Never
+            // turn that benign race into a customer-visible 500 or overwrite
+            // the winning provider state.
+            return getStatus(paymentRecordId, false);
         }
-        if (payment.getStatus() == PaymentStatus.FAILED
-                || payment.getStatus() == PaymentStatus.EXPIRED) {
-            return toResponse(payment);
-        }
-
-        // Do not release the lock until the provider confirms that this order
-        // has not already completed. Provider/network errors intentionally
-        // leave the attempt active, because guessing here can double-charge.
-        payment = payment.getProvider() == PaymentProvider.PHONEPE
-                ? refreshPhonePe(payment)
-                : refreshRazorpay(payment);
-
-        if (payment.getStatus() == PaymentStatus.PAID
-                || payment.getStatus() == PaymentStatus.REFUNDED
-                || payment.getStatus() == PaymentStatus.REVIEW_REQUIRED
-                || payment.getStatus() == PaymentStatus.FAILED
-                || payment.getStatus() == PaymentStatus.EXPIRED) {
-            return toResponse(payment);
-        }
-
-        payment.setStatus(PaymentStatus.EXPIRED);
-        payment.setProviderState("ABANDONED_BY_CUSTOMER");
-        payment.setFailureCode("CUSTOMER_ABANDONED");
-        payment.setFailureReason(
-                "Customer cancelled this checkout before completion");
-        schedulePaymentReconciliation(payment);
-        return toResponse(paymentRepository.saveAndFlush(payment));
     }
 
     public void handlePhonePeWebhook(
@@ -356,7 +409,6 @@ public class PaymentService {
 
             payment.setLastWebhookEvent(event);
             payment.setLastWebhookAt(LocalDateTime.now());
-            payment.setProviderState(state);
 
             if (providerOrderId != null) {
                 if (payment.getProviderOrderId() == null) {
@@ -376,6 +428,12 @@ public class PaymentService {
                 return;
             }
 
+            if (isLocallyTerminalWithoutCapture(payment, state, "COMPLETED")) {
+                schedulePaymentReconciliation(payment);
+                paymentRepository.save(payment);
+                return;
+            }
+
             if ("COMPLETED".equalsIgnoreCase(state)
                     && !PhonePeClient.isUpiPaymentMode(
                             completedPhonePePaymentMode(payload))) {
@@ -391,10 +449,21 @@ public class PaymentService {
             applyPhonePeState(
                     payment,
                     state,
-                    completedPhonePeTransactionId(payload));
+                    completedPhonePeTransactionId(payload),
+                    firstNonBlank(
+                            text(payload, "errorCode"),
+                            text(payload, "code")),
+                    firstNonBlank(
+                            text(payload, "message"),
+                            text(payload, "errorMessage")));
             paymentRepository.save(payment);
         } catch (ResponseStatusException exception) {
             throw exception;
+        } catch (ObjectOptimisticLockingFailureException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Payment state changed; retry this webhook",
+                    exception);
         } catch (Exception exception) {
             throw badRequest("Invalid PhonePe webhook payload");
         }
@@ -411,6 +480,11 @@ public class PaymentService {
             throw new ResponseStatusException(
                     HttpStatus.UNAUTHORIZED,
                     "Invalid Razorpay webhook signature");
+        }
+
+        if (!isBlank(eventId)
+                && paymentRefundService.hasProcessedGatewayEvent(eventId)) {
+            return;
         }
 
         try {
@@ -453,17 +527,12 @@ public class PaymentService {
                 return;
             }
 
-            String providerPaymentId = text(paymentEntity, "id");
-            if (providerPaymentId == null) {
+            if (text(paymentEntity, "id") == null) {
                 payment.setLastWebhookEvent(
                         firstNonBlank(eventId, event));
                 payment.setLastWebhookAt(LocalDateTime.now());
                 paymentRepository.save(payment);
                 return;
-            }
-
-            if (providerPaymentId != null) {
-                payment.setProviderPaymentId(providerPaymentId);
             }
 
             payment.setLastWebhookEvent(
@@ -473,28 +542,172 @@ public class PaymentService {
             paymentRepository.save(payment);
         } catch (ResponseStatusException exception) {
             throw exception;
+        } catch (ObjectOptimisticLockingFailureException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Payment state changed; retry this webhook",
+                    exception);
         } catch (Exception exception) {
             throw badRequest("Invalid Razorpay webhook payload");
         }
     }
 
+    public PaymentTransaction reconcilePayment(PaymentTransaction payment) {
+        if (payment == null || !shouldRefresh(payment)) {
+            return payment;
+        }
+
+        try {
+            if (payment.getStatus() == PaymentStatus.CREATED
+                    && payment.getProvider() == PaymentProvider.RAZORPAY
+                    && isBlank(payment.getProviderOrderId())) {
+                if (isExpiredLocally(payment)) {
+                    expireLocally(payment);
+                } else {
+                    schedulePaymentReconciliation(payment);
+                }
+                return paymentRepository.save(payment);
+            }
+
+            PaymentTransaction refreshed = payment.getProvider() == PaymentProvider.PHONEPE
+                    ? refreshPhonePe(payment)
+                    : refreshRazorpay(payment);
+            if ((refreshed.getStatus() == PaymentStatus.CREATED
+                    || refreshed.getStatus() == PaymentStatus.PENDING)
+                    && isExpiredLocally(refreshed)
+                    && !hasProviderPaymentInFlight(refreshed)) {
+                expireLocally(refreshed);
+            }
+            refreshed.setLastReconciledAt(LocalDateTime.now());
+            refreshed.setReconcileAttempts(
+                    value(refreshed.getReconcileAttempts()) + 1);
+            if (shouldRefresh(refreshed)) {
+                schedulePaymentReconciliation(refreshed);
+            } else {
+                clearPaymentReconciliation(refreshed);
+            }
+            return paymentRepository.save(refreshed);
+        } catch (ResponseStatusException exception) {
+            payment.setLastReconciledAt(LocalDateTime.now());
+            payment.setReconcileAttempts(
+                    value(payment.getReconcileAttempts()) + 1);
+            schedulePaymentReconciliation(payment);
+            return paymentRepository.save(payment);
+        }
+    }
+
+    public void ensureAutomaticRefund(PaymentTransaction payment) {
+        paymentRefundService.ensureAutomaticRefund(payment);
+    }
+
+    private PaymentResponse abandonPaymentOnce(
+            Long paymentRecordId,
+            boolean customerCancelled) {
+        PaymentTransaction payment = requireOwnedPayment(paymentRecordId);
+
+        if (payment.getStatus() == PaymentStatus.PAID
+                || payment.getStatus() == PaymentStatus.REFUNDED
+                || payment.getStatus() == PaymentStatus.REVIEW_REQUIRED) {
+            return toResponse(payment);
+        }
+        if (payment.getStatus() == PaymentStatus.FAILED
+                || payment.getStatus() == PaymentStatus.EXPIRED) {
+            return toResponse(payment);
+        }
+
+        // Do not release the lock until the provider confirms that this order
+        // has not already completed. Provider/network errors intentionally
+        // leave the attempt active, because guessing here can double-charge.
+        payment = payment.getProvider() == PaymentProvider.PHONEPE
+                ? refreshPhonePe(payment)
+                : refreshRazorpay(payment);
+
+        if (payment.getStatus() == PaymentStatus.PAID
+                || payment.getStatus() == PaymentStatus.REFUNDED
+                || payment.getStatus() == PaymentStatus.REVIEW_REQUIRED
+                || payment.getStatus() == PaymentStatus.FAILED
+                || payment.getStatus() == PaymentStatus.EXPIRED) {
+            return toResponse(payment);
+        }
+
+        // A confirmed checkout dismissal is different from an uncertain SDK/network
+        // failure. The frontend sets customerCancelled=true only when Razorpay
+        // explicitly reports a user cancellation (or the web modal was deliberately
+        // closed). We still refresh Razorpay first above. If the provider has no
+        // authorized/captured/failed payment and the order remains only CREATED,
+        // release it immediately so the customer can choose another method.
+        // AUTHORIZED or any other provider-observed in-flight state remains locked.
+        if (customerCancelled
+                && isRazorpayCreatedOnly(payment)) {
+            payment.setStatus(PaymentStatus.EXPIRED);
+            payment.setProviderState("ABANDONED_BY_CUSTOMER");
+            payment.setFailureCode("CUSTOMER_ABANDONED");
+            payment.setFailureReason(
+                    "Customer cancelled this checkout before completion");
+            schedulePaymentReconciliation(payment);
+            return toResponse(paymentRepository.saveAndFlush(payment));
+        }
+
+        // An authorized/provider-observed payment may still capture after the
+        // customer closes checkout. Keep it locked. A Razorpay payment that is
+        // still only in CREATED state can, however, be explicitly released
+        // after a short grace period. The terminal EXPIRED row continues to be
+        // reconciled, so a rare late capture is detected by the existing
+        // LATE_CAPTURE/refund protection instead of becoming an untracked
+        // duplicate charge.
+        // Protect a Razorpay order during the customer retry grace window even
+        // when no providerPaymentId exists yet. A lost client callback can leave
+        // only the order visible for a short period; releasing it immediately
+        // would allow a duplicate payment.
+        if (isCancelRetryCandidate(payment)
+                && !canExplicitlyReleasePendingRazorpayPayment(payment)) {
+            schedulePaymentReconciliation(payment);
+            return toResponse(paymentRepository.saveAndFlush(payment));
+        }
+
+        // AUTHORIZED or another provider-observed non-terminal state can still
+        // capture and must never be released merely because the UI grace timer
+        // elapsed.
+        if (hasProviderPaymentInFlight(payment)
+                && !canExplicitlyReleasePendingRazorpayPayment(payment)) {
+            schedulePaymentReconciliation(payment);
+            return toResponse(paymentRepository.saveAndFlush(payment));
+        }
+
+        payment.setStatus(PaymentStatus.EXPIRED);
+        payment.setProviderState("ABANDONED_BY_CUSTOMER");
+        payment.setFailureCode("CUSTOMER_ABANDONED");
+        payment.setFailureReason(
+                "Customer cancelled this checkout before completion");
+        schedulePaymentReconciliation(payment);
+        return toResponse(paymentRepository.saveAndFlush(payment));
+    }
+
     private void createPhonePeOrder(
             PaymentTransaction payment,
-            Users currentUser) {
+            Users currentUser,
+            String clientPlatform) {
+        boolean nativeClient = "NATIVE".equalsIgnoreCase(clientPlatform);
         String redirectUrl = normalizedFrontendBaseUrl()
                 + "/client-setup/payment/payment-success"
                 + "?paymentRecordId="
                 + payment.getId();
 
-        PhonePeClient.CreatedOrder order = phonePeClient.createPayment(
-                payment.getMerchantOrderId(),
-                payment.getAmountPaise(),
-                redirectUrl,
-                currentUser.getMobile());
+        PhonePeClient.CreatedOrder order = nativeClient
+                ? phonePeClient.createSdkPayment(
+                        payment.getMerchantOrderId(),
+                        payment.getAmountPaise())
+                : phonePeClient.createPayment(
+                        payment.getMerchantOrderId(),
+                        payment.getAmountPaise(),
+                        redirectUrl,
+                        currentUser.getMobile());
 
         payment.setProviderOrderId(order.orderId());
         payment.setProviderState(order.state());
-        payment.setCheckoutUrl(order.redirectUrl());
+        payment.setCheckoutUrl(nativeClient
+                ? PHONEPE_SDK_TOKEN_PREFIX + order.sdkToken()
+                : order.redirectUrl());
         payment.setExpiresAt(order.expiresAt());
         payment.setStatus(PaymentStatus.PENDING);
         schedulePaymentReconciliation(payment);
@@ -529,10 +742,6 @@ public class PaymentService {
         PhonePeClient.OrderStatus status = phonePeClient.getOrderStatus(
                 payment.getMerchantOrderId());
 
-        payment.setProviderState(status.state());
-        payment.setFailureCode(status.failureCode());
-        payment.setFailureReason(status.failureReason());
-
         if (status.orderId() != null) {
             if (payment.getProviderOrderId() == null) {
                 payment.setProviderOrderId(status.orderId());
@@ -546,6 +755,14 @@ public class PaymentService {
             return markForReview(payment, "PhonePe amount mismatch");
         }
 
+        if (isLocallyTerminalWithoutCapture(
+                payment,
+                status.state(),
+                "COMPLETED")) {
+            schedulePaymentReconciliation(payment);
+            return paymentRepository.save(payment);
+        }
+
         if ("COMPLETED".equalsIgnoreCase(status.state())
                 && !PhonePeClient.isUpiPaymentMode(status.paymentMode())) {
             payment.setProviderPaymentId(status.transactionId());
@@ -555,7 +772,12 @@ public class PaymentService {
                     "PhonePe completed with a non-UPI method");
         }
 
-        applyPhonePeState(payment, status.state(), status.transactionId());
+        applyPhonePeState(
+                payment,
+                status.state(),
+                status.transactionId(),
+                status.failureCode(),
+                status.failureReason());
 
         return paymentRepository.save(payment);
     }
@@ -583,6 +805,25 @@ public class PaymentService {
         }
     }
 
+    private PaymentTransaction refreshRazorpayByPaymentId(
+            PaymentTransaction payment,
+            String providerPaymentId) {
+        ensureRazorpayConfigured();
+
+        try {
+            Payment providerPayment = razorpayClient.payments.fetch(
+                    providerPaymentId);
+            applyRazorpayPaymentEntity(
+                    payment,
+                    toRazorpayPaymentEntity(providerPayment));
+            return paymentRepository.saveAndFlush(payment);
+        } catch (RazorpayException exception) {
+            throw gatewayFailure(
+                    "Razorpay payment status could not be verified",
+                    exception);
+        }
+    }
+
     private PaymentTransaction refreshRazorpayFromOrder(
             PaymentTransaction payment) {
         if (isBlank(payment.getProviderOrderId())) {
@@ -598,12 +839,10 @@ public class PaymentService {
                 return payment;
             }
 
-            String providerPaymentId = razorpayValue(selected, "id");
-            if (isBlank(providerPaymentId)) {
+            if (isBlank(razorpayValue(selected, "id"))) {
                 return payment;
             }
 
-            payment.setProviderPaymentId(providerPaymentId);
             applyRazorpayPaymentEntity(
                     payment,
                     toRazorpayPaymentEntity(selected));
@@ -649,6 +888,9 @@ public class PaymentService {
     private ObjectNode toRazorpayPaymentEntity(Payment providerPayment) {
         ObjectNode paymentEntity = objectMapper.createObjectNode();
         paymentEntity.put(
+                "id",
+                razorpayValue(providerPayment, "id"));
+        paymentEntity.put(
                 "order_id",
                 razorpayValue(providerPayment, "order_id"));
         paymentEntity.put(
@@ -678,7 +920,9 @@ public class PaymentService {
     private void applyPhonePeState(
             PaymentTransaction payment,
             String state,
-            String transactionId) {
+            String transactionId,
+            String failureCode,
+            String failureReason) {
         if (isBlank(state)) {
             return;
         }
@@ -693,7 +937,37 @@ public class PaymentService {
             return;
         }
 
+        if (payment.getStatus() == PaymentStatus.PAID) {
+            if (!isBlank(payment.getProviderPaymentId())
+                    && !isBlank(transactionId)
+                    && !payment.getProviderPaymentId().equals(transactionId)) {
+                return;
+            }
+            payment.setProviderState(state);
+            if (isBlank(payment.getProviderPaymentId())) {
+                payment.setProviderPaymentId(transactionId);
+            }
+            return;
+        }
+
         PaymentStatus previousStatus = payment.getStatus();
+
+        // FAILED and EXPIRED are locally terminal. A later non-terminal
+        // provider response (for example PENDING during eventual
+        // consistency) must never reactivate the row or its unique active
+        // payment lock. COMPLETED is the only exception: it is a late capture
+        // and must enter review so the existing automatic-refund flow runs.
+        if ((previousStatus == PaymentStatus.FAILED
+                || previousStatus == PaymentStatus.EXPIRED)
+                && !"COMPLETED".equalsIgnoreCase(state)) {
+            schedulePaymentReconciliation(payment);
+            return;
+        }
+
+        // Only write provider metadata after the monotonic-state guards.
+        // Otherwise a delayed PENDING/FAILED event could leave a PAID row with
+        // a regressed provider state or erase the local cancellation reason.
+        payment.setProviderState(state);
 
         switch (state.toUpperCase()) {
             case "COMPLETED" -> {
@@ -721,14 +995,20 @@ public class PaymentService {
             }
             case "FAILED" -> {
                 payment.setStatus(PaymentStatus.FAILED);
+                payment.setFailureCode(failureCode);
+                payment.setFailureReason(failureReason);
                 schedulePaymentReconciliation(payment);
             }
             case "EXPIRED" -> {
                 payment.setStatus(PaymentStatus.EXPIRED);
+                payment.setFailureCode(failureCode);
+                payment.setFailureReason(failureReason);
                 schedulePaymentReconciliation(payment);
             }
             default -> {
                 payment.setStatus(PaymentStatus.PENDING);
+                payment.setFailureCode(failureCode);
+                payment.setFailureReason(failureReason);
                 schedulePaymentReconciliation(payment);
             }
         }
@@ -771,9 +1051,8 @@ public class PaymentService {
         String currency = text(providerPayment, "currency");
         String method = text(providerPayment, "method");
         String state = text(providerPayment, "status");
+        String providerPaymentId = text(providerPayment, "id");
         long amountPaise = providerPayment.path("amount").asLong(0);
-
-        payment.setProviderState(state);
 
         if (payment.getStatus() == PaymentStatus.REFUNDED
                 || payment.getStatus() == PaymentStatus.REVIEW_REQUIRED) {
@@ -797,10 +1076,18 @@ public class PaymentService {
         }
 
         if (!"card".equalsIgnoreCase(method)) {
+            if (!isBlank(providerPaymentId)) {
+                payment.setProviderPaymentId(providerPaymentId);
+            }
             markForReview(
                     payment,
                     "FORBIDDEN_PAYMENT_METHOD",
                     "Non-card Razorpay payment");
+            return;
+        }
+
+        if (isLocallyTerminalWithoutCapture(payment, state, "captured")) {
+            schedulePaymentReconciliation(payment);
             return;
         }
 
@@ -809,9 +1096,33 @@ public class PaymentService {
             return;
         }
 
+        if (payment.getStatus() == PaymentStatus.PAID) {
+            // Ignore an out-of-order capture for a different payment attempt
+            // under the same Razorpay order. The already-verified captured
+            // payment ID must remain the auditable reference for this row.
+            if (!isBlank(payment.getProviderPaymentId())
+                    && !isBlank(providerPaymentId)
+                    && !payment.getProviderPaymentId()
+                            .equals(providerPaymentId)) {
+                return;
+            }
+            payment.setProviderState(state);
+            if (isBlank(payment.getProviderPaymentId())) {
+                payment.setProviderPaymentId(providerPaymentId);
+            }
+            return;
+        }
+
         PaymentStatus previousStatus = payment.getStatus();
 
+        // Preserve terminal metadata above; only an accepted transition may
+        // update the provider state/payment reference below.
+        payment.setProviderState(state);
+
         if ("captured".equalsIgnoreCase(state)) {
+            if (!isBlank(providerPaymentId)) {
+                payment.setProviderPaymentId(providerPaymentId);
+            }
             if (anotherPaymentAlreadyPaid(payment)) {
                 markDuplicateCaptureForReview(payment);
                 return;
@@ -833,11 +1144,17 @@ public class PaymentService {
             payment.setFailureReason(null);
             clearPaymentReconciliation(payment);
         } else if ("failed".equalsIgnoreCase(state)) {
+            if (isBlank(payment.getProviderPaymentId())) {
+                payment.setProviderPaymentId(providerPaymentId);
+            }
             payment.setStatus(PaymentStatus.FAILED);
             payment.setFailureCode(text(providerPayment, "error_code"));
             payment.setFailureReason(text(providerPayment, "error_description"));
             schedulePaymentReconciliation(payment);
         } else {
+            if (!isBlank(providerPaymentId)) {
+                payment.setProviderPaymentId(providerPaymentId);
+            }
             payment.setStatus(PaymentStatus.PENDING);
             schedulePaymentReconciliation(payment);
         }
@@ -906,12 +1223,35 @@ public class PaymentService {
         }
 
         if (expiresAt != null && !expiresAt.isAfter(LocalDateTime.now())) {
-            activePayment.setStatus(PaymentStatus.EXPIRED);
-            activePayment.setProviderState("EXPIRED_LOCALLY");
-            activePayment.setFailureCode("ORDER_EXPIRED");
-            activePayment.setFailureReason(
-                    "Payment attempt expired before completion");
-            schedulePaymentReconciliation(activePayment);
+            // A browser/app can disappear after the gateway accepted payment.
+            // Check the provider before releasing the unique active-payment
+            // lock so an already captured/authorized payment cannot be
+            // followed by a second order.
+            activePayment = activePayment.getProvider() == PaymentProvider.PHONEPE
+                    ? refreshPhonePe(activePayment)
+                    : refreshRazorpay(activePayment);
+
+            if (activePayment.getStatus() == PaymentStatus.PAID) {
+                throw paymentConflict(
+                        "Payment has already been completed for this "
+                                + "onboarding request");
+            }
+            if (activePayment.getStatus() == PaymentStatus.REVIEW_REQUIRED) {
+                throw paymentConflict(
+                        "Payment is under refund review for this onboarding "
+                                + "request");
+            }
+            if (activePayment.getStatus() == PaymentStatus.FAILED
+                    || activePayment.getStatus() == PaymentStatus.EXPIRED
+                    || activePayment.getStatus() == PaymentStatus.REFUNDED) {
+                return null;
+            }
+            if (hasProviderPaymentInFlight(activePayment)) {
+                schedulePaymentReconciliation(activePayment);
+                return paymentRepository.saveAndFlush(activePayment);
+            }
+
+            expireLocally(activePayment);
             paymentRepository.saveAndFlush(activePayment);
             return null;
         }
@@ -930,8 +1270,14 @@ public class PaymentService {
             return false;
         }
 
-        return payment.getProvider() == PaymentProvider.RAZORPAY
-                || !isBlank(payment.getCheckoutUrl());
+        if (payment.getProvider() == PaymentProvider.RAZORPAY) {
+            return true;
+        }
+
+        boolean requestedNative = "NATIVE".equalsIgnoreCase(
+                request.getClientPlatform());
+        return !isBlank(payment.getCheckoutUrl())
+                && requestedNative == isNativePhonePePayment(payment);
     }
 
     private boolean anotherPaymentAlreadyPaid(
@@ -986,7 +1332,10 @@ public class PaymentService {
         if (!existing.getCreatedByUserId().equals(currentUser.getId())
                 || !existing.getOnboardingRequestId()
                         .equals(request.getOnboardingRequestId())
-                || existing.getPreferredMethod() != request.getPreferredMethod()) {
+                || existing.getPreferredMethod() != request.getPreferredMethod()
+                || (existing.getProvider() == PaymentProvider.PHONEPE
+                        && isNativePhonePePayment(existing) != "NATIVE".equalsIgnoreCase(
+                                request.getClientPlatform()))) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
                     "Idempotency key is already used for another payment");
@@ -1047,6 +1396,13 @@ public class PaymentService {
                         .matches("[A-Za-z0-9_-]{16,64}")) {
             throw badRequest("A valid idempotency key is required");
         }
+
+        if (request.getClientPlatform() != null
+                && !request.getClientPlatform().isBlank()
+                && !"WEB".equalsIgnoreCase(request.getClientPlatform())
+                && !"NATIVE".equalsIgnoreCase(request.getClientPlatform())) {
+            throw badRequest("Unsupported payment client platform");
+        }
     }
 
     private void enforceOrderCreationRateLimit(Long userId) {
@@ -1074,6 +1430,12 @@ public class PaymentService {
     private CreatePaymentOrderResponse toCreateResponse(
             PaymentTransaction payment,
             OnboardingRequest onboarding) {
+        boolean nativePhonePe = isNativePhonePePayment(payment);
+        String sdkToken = nativePhonePe
+                ? payment.getCheckoutUrl().substring(
+                        PHONEPE_SDK_TOKEN_PREFIX.length())
+                : null;
+
         return CreatePaymentOrderResponse.builder()
                 .paymentRecordId(payment.getId())
                 .provider(payment.getProvider())
@@ -1085,7 +1447,15 @@ public class PaymentService {
                         ? razorpayKeyId
                         : null)
                 .checkoutUrl(payment.getProvider() == PaymentProvider.PHONEPE
-                        ? payment.getCheckoutUrl()
+                        && !nativePhonePe
+                                ? payment.getCheckoutUrl()
+                                : null)
+                .phonePeSdkToken(sdkToken)
+                .phonePeMerchantId(nativePhonePe
+                        ? phonePeClient.merchantId()
+                        : null)
+                .phonePeEnvironment(nativePhonePe
+                        ? phonePeClient.sdkEnvironment()
                         : null)
                 .amountPaise(payment.getAmountPaise())
                 .amount(payment.getAmount())
@@ -1094,6 +1464,14 @@ public class PaymentService {
                 .description("Onboarding payment #" + onboarding.getId())
                 .expiresAt(payment.getExpiresAt())
                 .build();
+    }
+
+    private boolean isNativePhonePePayment(PaymentTransaction payment) {
+        return payment != null
+                && payment.getProvider() == PaymentProvider.PHONEPE
+                && payment.getCheckoutUrl() != null
+                && payment.getCheckoutUrl().startsWith(
+                        PHONEPE_SDK_TOKEN_PREFIX);
     }
 
     private PaymentResponse toResponse(PaymentTransaction payment) {
@@ -1124,9 +1502,12 @@ public class PaymentService {
                 .currency(payment.getCurrency())
                 .status(payment.getStatus())
                 .providerState(payment.getProviderState())
+                .failureCode(payment.getFailureCode())
                 .failureReason(payment.getFailureReason())
                 .paidAt(payment.getPaidAt())
                 .expiresAt(payment.getExpiresAt())
+                .cancelRetryAllowed(isCancelRetryAllowed(payment))
+                .cancelRetrySecondsRemaining(cancelRetrySecondsRemaining(payment))
                 .terminal(terminal)
                 .successful(successful)
                 .refundId(refund == null ? null : refund.getId())
@@ -1171,54 +1552,6 @@ public class PaymentService {
                 || shouldReconcileTerminalPayment(payment);
     }
 
-    public PaymentTransaction reconcilePayment(PaymentTransaction payment) {
-        if (payment == null || !shouldRefresh(payment)) {
-            return payment;
-        }
-
-        try {
-            if (payment.getStatus() == PaymentStatus.CREATED
-                    && payment.getProvider() == PaymentProvider.RAZORPAY
-                    && isBlank(payment.getProviderOrderId())) {
-                if (isExpiredLocally(payment)) {
-                    expireLocally(payment);
-                } else {
-                    schedulePaymentReconciliation(payment);
-                }
-                return paymentRepository.save(payment);
-            }
-
-            PaymentTransaction refreshed = payment.getProvider()
-                    == PaymentProvider.PHONEPE
-                            ? refreshPhonePe(payment)
-                            : refreshRazorpay(payment);
-            if ((refreshed.getStatus() == PaymentStatus.CREATED
-                    || refreshed.getStatus() == PaymentStatus.PENDING)
-                    && isExpiredLocally(refreshed)) {
-                expireLocally(refreshed);
-            }
-            refreshed.setLastReconciledAt(LocalDateTime.now());
-            refreshed.setReconcileAttempts(
-                    value(refreshed.getReconcileAttempts()) + 1);
-            if (shouldRefresh(refreshed)) {
-                schedulePaymentReconciliation(refreshed);
-            } else {
-                clearPaymentReconciliation(refreshed);
-            }
-            return paymentRepository.save(refreshed);
-        } catch (ResponseStatusException exception) {
-            payment.setLastReconciledAt(LocalDateTime.now());
-            payment.setReconcileAttempts(
-                    value(payment.getReconcileAttempts()) + 1);
-            schedulePaymentReconciliation(payment);
-            return paymentRepository.save(payment);
-        }
-    }
-
-    public void ensureAutomaticRefund(PaymentTransaction payment) {
-        paymentRefundService.ensureAutomaticRefund(payment);
-    }
-
     private boolean isExpiredLocally(PaymentTransaction payment) {
         LocalDateTime expiresAt = payment.getExpiresAt();
         if (expiresAt == null && payment.getCreatedAt() != null) {
@@ -1226,6 +1559,103 @@ public class PaymentService {
                     .plusMinutes(ACTIVE_ORDER_TTL_MINUTES);
         }
         return expiresAt != null && !expiresAt.isAfter(LocalDateTime.now());
+    }
+
+    private PaymentTransaction expireAfterProviderCheckIfDue(
+            PaymentTransaction payment) {
+        if ((payment.getStatus() == PaymentStatus.CREATED
+                || payment.getStatus() == PaymentStatus.PENDING)
+                && isExpiredLocally(payment)
+                && !hasProviderPaymentInFlight(payment)) {
+            expireLocally(payment);
+            return paymentRepository.saveAndFlush(payment);
+        }
+        return payment;
+    }
+
+    private boolean hasProviderPaymentInFlight(
+            PaymentTransaction payment) {
+        if (isBlank(payment.getProviderPaymentId())) {
+            return false;
+        }
+
+        String state = payment.getProviderState();
+        if (isBlank(state)) {
+            return true;
+        }
+
+        if ("created".equalsIgnoreCase(state)
+                && isExpiredLocally(payment)) {
+            // A Razorpay payment can remain CREATED when checkout was
+            // interrupted before authorisation. Once our active-order TTL has
+            // elapsed, release the local active-payment lock. The EXPIRED row
+            // is still reconciled during the terminal grace window, so a late
+            // capture is detected and automatically moved to review/refund.
+            return false;
+        }
+
+        return !"FAILED".equalsIgnoreCase(state)
+                && !"COMPLETED".equalsIgnoreCase(state)
+                && !"captured".equalsIgnoreCase(state)
+                && !"refunded".equalsIgnoreCase(state);
+    }
+
+    private boolean isRazorpayCreatedOnly(PaymentTransaction payment) {
+        return payment != null
+                && payment.getProvider() == PaymentProvider.RAZORPAY
+                && (payment.getStatus() == PaymentStatus.CREATED
+                        || payment.getStatus() == PaymentStatus.PENDING)
+                && "created".equalsIgnoreCase(payment.getProviderState());
+    }
+
+    private boolean isCancelRetryCandidate(PaymentTransaction payment) {
+        return payment != null
+                && payment.getProvider() == PaymentProvider.RAZORPAY
+                && (payment.getStatus() == PaymentStatus.CREATED
+                        || payment.getStatus() == PaymentStatus.PENDING)
+                && "created".equalsIgnoreCase(payment.getProviderState())
+                && payment.getCreatedAt() != null;
+    }
+
+    private long cancelRetrySecondsRemaining(PaymentTransaction payment) {
+        if (!isCancelRetryCandidate(payment)) {
+            return 0L;
+        }
+        int graceSeconds = Math.max(30, cancelRetryGraceSeconds);
+        LocalDateTime availableAt = payment.getCreatedAt().plusSeconds(graceSeconds);
+        long remaining = ChronoUnit.SECONDS.between(LocalDateTime.now(), availableAt);
+        return Math.max(0L, remaining);
+    }
+
+    private boolean isCancelRetryAllowed(PaymentTransaction payment) {
+        return isCancelRetryCandidate(payment)
+                && cancelRetrySecondsRemaining(payment) == 0L;
+    }
+
+    private boolean canExplicitlyReleasePendingRazorpayPayment(
+            PaymentTransaction payment) {
+        if (payment.getProvider() != PaymentProvider.RAZORPAY
+                || !"created".equalsIgnoreCase(payment.getProviderState())) {
+            return false;
+        }
+
+        LocalDateTime createdAt = payment.getCreatedAt();
+        if (createdAt == null) {
+            return false;
+        }
+
+        int graceSeconds = Math.max(30, cancelRetryGraceSeconds);
+        return !createdAt.plusSeconds(graceSeconds)
+                .isAfter(LocalDateTime.now());
+    }
+
+    private boolean isLocallyTerminalWithoutCapture(
+            PaymentTransaction payment,
+            String providerState,
+            String capturedState) {
+        return (payment.getStatus() == PaymentStatus.FAILED
+                || payment.getStatus() == PaymentStatus.EXPIRED)
+                && !capturedState.equalsIgnoreCase(providerState);
     }
 
     private void expireLocally(PaymentTransaction payment) {

@@ -14,10 +14,24 @@ import com.zincycorporation.enums.PaymentStatus;
 public interface PaymentTransactionRepository
                 extends JpaRepository<PaymentTransaction, Long> {
 
-        Optional<PaymentTransaction> findByIdempotencyKey(String idempotencyKey);
+        /*
+         * Payment creation / idempotency
+         */
+        Optional<PaymentTransaction> findByIdempotencyKey(
+                        String idempotencyKey);
 
-        Optional<PaymentTransaction> findByMerchantOrderId(String merchantOrderId);
+        Optional<PaymentTransaction> findByMerchantOrderId(
+                        String merchantOrderId);
 
+        /*
+         * Provider references.
+         *
+         * These are important when recovering a payment after:
+         * - webhook delivery
+         * - network timeout
+         * - reconciliation
+         * - duplicate gateway callbacks
+         */
         Optional<PaymentTransaction> findByProviderAndProviderOrderId(
                         PaymentProvider provider,
                         String providerOrderId);
@@ -26,6 +40,9 @@ public interface PaymentTransactionRepository
                         PaymentProvider provider,
                         String providerPaymentId);
 
+        /*
+         * Existing payment-state checks.
+         */
         boolean existsByOnboardingRequestIdAndStatus(
                         Long onboardingRequestId,
                         PaymentStatus status);
@@ -43,13 +60,19 @@ public interface PaymentTransactionRepository
                         Long onboardingRequestId,
                         Collection<PaymentStatus> statuses);
 
+        /*
+         * Payment reconciliation.
+         *
+         * The ordering ensures the oldest due payment is processed first.
+         */
         List<PaymentTransaction> findTop50ByStatusInAndNextReconcileAtLessThanEqualOrderByNextReconcileAtAsc(
                         Collection<PaymentStatus> statuses,
                         LocalDateTime nextReconcileAt);
 
+        /*
+         * Existing failure-based recovery query.
+         */
         List<PaymentTransaction> findTop50ByStatusAndFailureCodeInOrderByUpdatedAtAsc(
                         PaymentStatus status,
                         Collection<String> failureCodes);
-
-
 }
