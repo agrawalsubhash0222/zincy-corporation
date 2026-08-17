@@ -69,6 +69,10 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (request) => {
+    if (Platform.OS !== 'web') {
+      request.headers['X-Zincy-Client'] = 'native';
+    }
+
     if (isDevelopment) {
       console.log(
         `API REQUEST: ${request.method?.toUpperCase()} ${request.baseURL}${request.url}`
