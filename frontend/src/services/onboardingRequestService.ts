@@ -1,5 +1,4 @@
-import axios from 'axios';
-import { API_BASE_URL } from './api';
+import api from './api';
 
 export type PaymentStatus =
     | 'CREATED'
@@ -158,20 +157,10 @@ export type AdminPaymentDetails = {
     refundCompletedAt?: string;
 };
 
-const onboardingApi = axios.create({
-    baseURL: `${API_BASE_URL}/onboarding-requests`,
-    timeout: 15000,
-    withCredentials: true,
-    headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-    },
-});
-
 export const getOnboardingRequests =
     async (): Promise<OnboardingRequest[]> => {
         const response =
-            await onboardingApi.get<OnboardingRequest[]>(
+            await api.get<OnboardingRequest[]>(
                 '/admin'
             );
 
@@ -189,7 +178,7 @@ export const getAdminOnboardingDetails =
         requestId: number
     ): Promise<AdminOnboardingDetails> => {
         const response =
-            await onboardingApi.get<AdminOnboardingDetails>(
+            await api.get<AdminOnboardingDetails>(
                 `/admin/${requestId}/details`
             );
 
@@ -202,7 +191,7 @@ export const updateOnboardingRequestStatus =
         status: OnboardingStatus
     ): Promise<OnboardingRequest> => {
         const response =
-            await onboardingApi.patch<OnboardingRequest>(
+            await api.patch<OnboardingRequest>(
                 `/admin/${requestId}/status`,
                 { status }
             );
@@ -213,7 +202,7 @@ export const updateOnboardingRequestStatus =
 export const getMyOnboardingRequests =
     async (): Promise<CustomerOnboardingRequest[]> => {
         const response =
-            await onboardingApi.get<
+            await api.get<
                 CustomerOnboardingRequest[]
             >(
                 '/customer/me'
@@ -233,7 +222,7 @@ export const getOnboardingRequestProgress =
         onboardingRequestId: number
     ): Promise<CustomerOnboardingRequest> => {
         const response =
-            await onboardingApi.get<
+            await api.get<
                 CustomerOnboardingRequest
             >(
                 `/customer/request/${onboardingRequestId}/progress`
