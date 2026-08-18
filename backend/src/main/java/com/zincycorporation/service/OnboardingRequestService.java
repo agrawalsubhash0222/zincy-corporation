@@ -12,10 +12,14 @@ import org.springframework.web.server.ResponseStatusException;
 import com.zincycorporation.dto.CustomerLatestOnboardingResponse;
 import com.zincycorporation.dto.OnboardingRequestDto;
 import com.zincycorporation.entity.OnboardingRequest;
+import com.zincycorporation.entity.PaymentRefund;
+import com.zincycorporation.entity.PaymentTransaction;
 import com.zincycorporation.entity.Users;
 import com.zincycorporation.enums.OnboardingNextStep;
 import com.zincycorporation.enums.OnboardingStatus;
 import com.zincycorporation.repository.OnboardingRequestRepository;
+import com.zincycorporation.repository.PaymentRefundRepository;
+import com.zincycorporation.repository.PaymentTransactionRepository;
 import com.zincycorporation.security.CurrentUserService;
 
 import lombok.RequiredArgsConstructor;
@@ -27,6 +31,8 @@ public class OnboardingRequestService {
         private final OnboardingRequestRepository repository;
         private final CurrentUserService currentUserService;
         private final OnboardingAccessService onboardingAccessService;
+        private final PaymentTransactionRepository paymentTransactionRepository;
+        private final PaymentRefundRepository paymentRefundRepository;
 
         @Transactional
         public OnboardingRequest submit(
@@ -143,6 +149,16 @@ public class OnboardingRequestService {
 
                 boolean maintenanceCompleted = request.isMaintenanceSetupCompleted();
 
+                PaymentTransaction latestPayment = paymentTransactionRepository
+                                .findFirstByOnboardingRequestIdOrderByCreatedAtDesc(request.getId())
+                                .orElse(null);
+
+                PaymentRefund latestRefund = latestPayment == null
+                                ? null
+                                : paymentRefundRepository
+                                                .findByPaymentOrderId(latestPayment.getId())
+                                                .orElse(null);
+
                 return CustomerLatestOnboardingResponse
                                 .builder()
                                 .id(request.getId())
@@ -167,6 +183,26 @@ public class OnboardingRequestService {
                                                 serverCompleted)
                                 .maintenanceSetupCompleted(
                                                 maintenanceCompleted)
+                                .paymentStatus(
+                                                latestPayment == null
+                                                                ? null
+                                                                : latestPayment.getStatus())
+                                .paymentRecordId(
+                                                latestPayment == null
+                                                                ? null
+                                                                : latestPayment.getId())
+                                .paymentProvider(
+                                                latestPayment == null
+                                                                ? null
+                                                                : latestPayment.getProvider())
+                                .paymentMethod(
+                                                latestPayment == null
+                                                                ? null
+                                                                : latestPayment.getPreferredMethod())
+                                .refundStatus(
+                                                latestRefund == null
+                                                                ? null
+                                                                : latestRefund.getStatus())
                                 .nextStep(
                                                 determineNextStep(
                                                                 clientCompleted,

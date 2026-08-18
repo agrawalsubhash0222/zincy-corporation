@@ -7,6 +7,11 @@ import com.zincycorporation.enums.BillingType;
 import com.zincycorporation.enums.MaintenanceBillingType;
 import com.zincycorporation.enums.MaintenanceType;
 import com.zincycorporation.enums.OnboardingStatus;
+import com.zincycorporation.enums.PaymentMethod;
+import com.zincycorporation.enums.PaymentProvider;
+import com.zincycorporation.enums.PaymentStatus;
+import com.zincycorporation.enums.RefundReason;
+import com.zincycorporation.enums.RefundStatus;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -74,6 +79,7 @@ public class AdminOnboardingDetailsResponse {
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
     }
+
     @Getter
     @Setter
     @Builder
@@ -108,16 +114,44 @@ public class AdminOnboardingDetailsResponse {
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
     }
+
+    @Getter
+    @Setter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class PaymentDetails {
+        private Long id;
+        private Long onboardingRequestId;
+
+        private PaymentProvider provider;
+        private PaymentMethod paymentMethod;
+
+        private BigDecimal amount;
+        private String currency;
+
+        private PaymentStatus status;
+        private String providerState;
+        private String providerPaymentId;
+
+        private LocalDateTime paidAt;
+
+        private RefundStatus refundStatus;
+        private RefundReason refundReason;
+        private BigDecimal refundAmount;
+        private LocalDateTime refundCompletedAt;
+    }
+
     private RequestDetails onboardingRequest;
 
     private boolean clientSetupCompleted;
     private ClientSetupDetails clientSetup;
 
     private boolean serverSetupCompleted;
-
     private ServerSetupDetails serverSetup;
 
     private boolean maintenanceSetupCompleted;
-
     private MaintenanceSetupDetails maintenanceSetup;
+
+    private PaymentDetails payment;
 }

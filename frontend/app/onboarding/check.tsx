@@ -29,6 +29,111 @@ import {
     SafeAreaView,
 } from 'react-native-safe-area-context';
 
+function openPaymentDestination(
+    item: CustomerOnboardingRequest,
+    onboardingRequestId: string,
+) {
+    const paymentStatus = item.paymentStatus;
+
+    if (
+        item.refundStatus === 'REQUESTED' ||
+        item.refundStatus === 'PENDING' ||
+        item.refundStatus === 'REVIEW_REQUIRED' ||
+        item.refundStatus === 'COMPLETED'
+    ) {
+        if (item.paymentRecordId) {
+            router.push({
+                pathname: '/client-setup/payment/payment-success',
+                params: {
+                    paymentRecordId: String(item.paymentRecordId),
+                },
+            });
+            return;
+        }
+    }
+
+    if (
+        paymentStatus === 'PAID' ||
+        paymentStatus === 'REFUNDED' ||
+        paymentStatus === 'REVIEW_REQUIRED'
+    ) {
+        if (item.paymentRecordId) {
+            router.push({
+                pathname: '/client-setup/payment/payment-success',
+                params: {
+                    paymentRecordId: String(item.paymentRecordId),
+                },
+            });
+            return;
+        }
+    }
+
+    if (
+        paymentStatus === 'CREATED' ||
+        paymentStatus === 'PENDING'
+    ) {
+        if (item.paymentRecordId) {
+            router.push({
+                pathname: '/client-setup/payment/payment-success',
+                params: {
+                    paymentRecordId: String(item.paymentRecordId),
+                },
+            });
+            return;
+        }
+    }
+
+    router.push({
+        pathname: '/client-setup/payment/checkout',
+        params: {
+            onboardingRequestId,
+        },
+    });
+}
+
+function paymentStatusLabel(
+    item: CustomerOnboardingRequest
+): string {
+    if (item.refundStatus === 'COMPLETED') {
+        return 'REFUNDED';
+    }
+
+    if (
+        item.refundStatus === 'REQUESTED' ||
+        item.refundStatus === 'PENDING'
+    ) {
+        return 'REFUND PROCESSING';
+    }
+
+    if (item.refundStatus === 'REVIEW_REQUIRED') {
+        return 'REFUND REVIEW REQUIRED';
+    }
+
+    switch (item.paymentStatus) {
+        case 'PAID':
+            return 'PAID';
+
+        case 'CREATED':
+        case 'PENDING':
+            return 'PROCESSING';
+
+        case 'FAILED':
+        case 'EXPIRED':
+            return 'PAYMENT FAILED';
+
+        case 'REVIEW_REQUIRED':
+            return 'REVIEW REQUIRED';
+
+        case 'REFUNDED':
+            return 'REFUNDED';
+
+        default:
+            return item.maintenanceSetupCompleted
+                ? 'PAYMENT REQUIRED'
+                : 'NOT STARTED';
+    }
+}
+
 export default function OnboardingCheckScreen() {
     const [loading, setLoading] = useState(true);
 
@@ -168,11 +273,10 @@ export default function OnboardingCheckScreen() {
 
             switch (progress.nextStep) {
                 case 'CHECKOUT':
-                    router.push({
-                        pathname:
-                            '/client-setup/payment/checkout',
-                        params: commonParams,
-                    });
+                    openPaymentDestination(
+                        progress,
+                        commonParams.onboardingRequestId,
+                    );
                     return;
 
                 case 'SERVER_SETUP_SUCCESS':
@@ -216,14 +320,10 @@ export default function OnboardingCheckScreen() {
             if (
                 item.maintenanceSetupCompleted === true
             ) {
-                router.push({
-                    pathname:
-                        '/client-setup/payment/checkout',
-                    params: {
-                        onboardingRequestId:
-                            String(requestId),
-                    },
-                });
+                openPaymentDestination(
+                    item,
+                    String(requestId),
+                );
                 return;
             }
 
@@ -446,6 +546,18 @@ export default function OnboardingCheckScreen() {
                                     >
                                         {item.status ||
                                             'SUBMITTED'}
+                                    </Text>
+                                </Text>
+
+                                <Text
+                                    style={[
+                                        styles.detailText,
+                                        styles.detailSpacing,
+                                    ]}
+                                >
+                                    Payment Status:{' '}
+                                    <Text style={styles.statusText}>
+                                        {paymentStatusLabel(item)}
                                     </Text>
                                 </Text>
 

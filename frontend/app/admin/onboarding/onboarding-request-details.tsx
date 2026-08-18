@@ -28,7 +28,8 @@ type SectionKey =
     | 'request'
     | 'client'
     | 'server'
-    | 'maintenance';
+    | 'maintenance'
+    | 'payment';
 
 type RouteParams = {
     onboardingRequestId?: string | string[];
@@ -120,6 +121,7 @@ export default function AdminOnboardingRequestDetailsScreen() {
         client: false,
         server: false,
         maintenance: false,
+        payment: false,
     });
 
     const loadDetails = useCallback(async () => {
@@ -213,6 +215,50 @@ export default function AdminOnboardingRequestDetailsScreen() {
     }
 
     const request = details.onboardingRequest;
+
+    const payment = details.payment;
+
+    const paymentStatusLabel = payment?.refundStatus === 'COMPLETED'
+        ? 'Refunded'
+        : payment?.refundStatus === 'REQUESTED' ||
+            payment?.refundStatus === 'PENDING'
+            ? 'Refund processing'
+            : payment?.refundStatus === 'REVIEW_REQUIRED'
+                ? 'Refund review required'
+                : payment?.status === 'PAID'
+                    ? 'Paid'
+                    : payment?.status === 'CREATED' ||
+                        payment?.status === 'PENDING'
+                        ? 'Processing'
+                        : payment?.status === 'FAILED' ||
+                            payment?.status === 'EXPIRED'
+                            ? 'Failed'
+                            : payment?.status === 'REVIEW_REQUIRED'
+                                ? 'Review required'
+                                : payment?.status === 'REFUNDED'
+                                    ? 'Refunded'
+                                    : 'Not paid';
+
+    const paymentStatusTone:
+        | 'default'
+        | 'success'
+        | 'warning'
+        | 'danger'
+        | 'review' =
+        payment?.refundStatus === 'COMPLETED' ||
+            payment?.status === 'PAID' ||
+            payment?.status === 'REFUNDED'
+            ? 'success'
+            : payment?.status === 'FAILED' ||
+                payment?.status === 'EXPIRED' ||
+                payment?.refundStatus === 'FAILED'
+                ? 'danger'
+                : payment?.status === 'REVIEW_REQUIRED' ||
+                    payment?.refundStatus === 'REVIEW_REQUIRED'
+                    ? 'review'
+                    : payment
+                        ? 'warning'
+                        : 'default';
 
     return (
         <SafeAreaView style={styles.container}>
@@ -597,6 +643,106 @@ export default function AdminOnboardingRequestDetailsScreen() {
                         <PendingMessage />
                     )}
                 </Accordion>
+                <Accordion
+                    title="Payment"
+                    icon="card-outline"
+                    expanded={expanded.payment}
+                    completed={
+                        payment?.status === 'PAID' ||
+                        payment?.status === 'REFUNDED' ||
+                        payment?.refundStatus === 'COMPLETED'
+                    }
+                    statusLabel={paymentStatusLabel}
+                    statusTone={paymentStatusTone}
+                    onPress={() => toggleSection('payment')}
+                >
+                    {payment ? (
+                        <>
+                            <DetailRow
+                                label="Payment Status"
+                                value={formatEnum(payment.status)}
+                                strong
+                            />
+
+                            <DetailRow
+                                label="Provider"
+                                value={formatEnum(payment.provider)}
+                            />
+
+                            <DetailRow
+                                label="Payment Method"
+                                value={formatEnum(payment.paymentMethod)}
+                            />
+
+                            <DetailRow
+                                label="Amount"
+                                value={formatAmount(payment.amount)}
+                            />
+
+                            <DetailRow
+                                label="Currency"
+                                value={display(payment.currency)}
+                            />
+
+                            <DetailRow
+                                label="Gateway State"
+                                value={formatEnum(payment.providerState)}
+                            />
+
+                            <DetailRow
+                                label="Payment Reference"
+                                value={display(
+                                    payment.providerPaymentId || `Zincy #${payment.id}`
+                                )}
+                            />
+
+                            <DetailRow
+                                label="Paid On"
+                                value={formatDate(payment.paidAt)}
+                            />
+
+                            {payment.refundStatus && (
+                                <>
+                                    <DetailRow
+                                        label="Refund Status"
+                                        value={formatEnum(payment.refundStatus)}
+                                        strong
+                                    />
+
+                                    <DetailRow
+                                        label="Refund Reason"
+                                        value={formatEnum(payment.refundReason)}
+                                    />
+
+                                    {payment.refundAmount !== undefined && (
+                                        <DetailRow
+                                            label="Refund Amount"
+                                            value={formatAmount(payment.refundAmount)}
+                                        />
+                                    )}
+
+                                    <DetailRow
+                                        label="Refund Completed On"
+                                        value={formatDate(
+                                            payment.refundCompletedAt
+                                        )}
+                                    />
+                                </>
+                            )}
+                        </>
+                    ) : (
+                        <View style={styles.pendingBox}>
+                            <Ionicons
+                                name="card-outline"
+                                size={20}
+                                color="#64748B"
+                            />
+                            <Text style={styles.pendingMessage}>
+                                No payment attempt has been made for this request yet.
+                            </Text>
+                        </View>
+                    )}
+                </Accordion>
             </ScrollView>
         </SafeAreaView>
     );
@@ -628,6 +774,8 @@ function Accordion({
     icon,
     expanded,
     completed,
+    statusLabel,
+    statusTone = 'default',
     onPress,
     children,
 }: {
@@ -635,6 +783,13 @@ function Accordion({
     icon: keyof typeof Ionicons.glyphMap;
     expanded: boolean;
     completed: boolean;
+    statusLabel?: string;
+    statusTone?:
+    | 'default'
+    | 'success'
+    | 'warning'
+    | 'danger'
+    | 'review';
     onPress: () => void;
     children: React.ReactNode;
 }) {
@@ -660,14 +815,20 @@ function Accordion({
                     <Text
                         style={[
                             styles.sectionStatus,
-                            completed
-                                ? styles.completedText
-                                : styles.pendingText,
+                            statusLabel
+                                ? statusTone === 'success'
+                                    ? styles.completedText
+                                    : statusTone === 'danger'
+                                        ? styles.failedText
+                                        : statusTone === 'review'
+                                            ? styles.reviewText
+                                            : styles.pendingText
+                                : completed
+                                    ? styles.completedText
+                                    : styles.pendingText,
                         ]}
                     >
-                        {completed
-                            ? 'Completed'
-                            : 'Pending'}
+                        {statusLabel ?? (completed ? 'Completed' : 'Pending')}
                     </Text>
                 </View>
 
@@ -970,6 +1131,14 @@ const styles = StyleSheet.create({
     pendingText: {
         color: '#B45309',
     },
+
+    failedText: {
+        color: '#DC2626',
+    },
+    reviewText: {
+        color: '#7C3AED',
+    },
+
     sectionBody: {
         paddingHorizontal: 14,
         paddingBottom: 14,

@@ -32,6 +32,34 @@ type OnboardingRequest = {
 
     serverSetupCompleted?: boolean | number | string;
     server_setup_completed?: boolean | number | string;
+
+    maintenanceSetupCompleted?: boolean | number | string;
+    maintenance_setup_completed?: boolean | number | string;
+
+    paymentStatus?:
+    | 'CREATED'
+    | 'PENDING'
+    | 'PAID'
+    | 'FAILED'
+    | 'EXPIRED'
+    | 'REVIEW_REQUIRED'
+    | 'REFUNDED';
+
+    paymentRecordId?: number;
+
+    paymentProvider?: 'PHONEPE' | 'RAZORPAY';
+
+    paymentMethod?:
+    | 'PHONEPE'
+    | 'CARD'
+    | 'GOOGLE_PAY';
+
+    refundStatus?:
+    | 'REQUESTED'
+    | 'PENDING'
+    | 'COMPLETED'
+    | 'FAILED'
+    | 'REVIEW_REQUIRED';
 };
 
 const isTrueValue = (value: unknown): boolean => {
@@ -85,6 +113,47 @@ const webConstrained = isWeb
         alignSelf: 'center' as const,
     }
     : {};
+
+function getPaymentDisplayStatus(
+    request: OnboardingRequest
+): string {
+    if (request.refundStatus === 'COMPLETED') {
+        return 'REFUNDED';
+    }
+
+    if (
+        request.refundStatus === 'REQUESTED' ||
+        request.refundStatus === 'PENDING'
+    ) {
+        return 'REFUND PROCESSING';
+    }
+
+    if (request.refundStatus === 'REVIEW_REQUIRED') {
+        return 'REFUND REVIEW REQUIRED';
+    }
+
+    switch (request.paymentStatus) {
+        case 'PAID':
+            return 'PAID';
+
+        case 'CREATED':
+        case 'PENDING':
+            return 'PROCESSING';
+
+        case 'FAILED':
+        case 'EXPIRED':
+            return 'PAYMENT FAILED';
+
+        case 'REVIEW_REQUIRED':
+            return 'REVIEW REQUIRED';
+
+        case 'REFUNDED':
+            return 'REFUNDED';
+
+        default:
+            return 'PAYMENT REQUIRED';
+    }
+}
 
 export default function OnboardingRequestDetailsScreen() {
     const params = useLocalSearchParams<{
@@ -140,6 +209,37 @@ export default function OnboardingRequestDetailsScreen() {
         isTrueValue(request.clientSetupCompleted) ||
         isTrueValue(request.client_setup_completed);
 
+    const maintenanceSetupCompleted =
+        isTrueValue(request.maintenanceSetupCompleted) ||
+        isTrueValue(request.maintenance_setup_completed);
+
+    const paymentDisplayStatus =
+        maintenanceSetupCompleted
+            ? getPaymentDisplayStatus(request)
+            : 'NOT STARTED';
+
+    const nextActionLabel = maintenanceSetupCompleted
+        ? request.refundStatus === 'COMPLETED'
+            ? 'View Refund Details'
+            : request.refundStatus === 'REQUESTED' ||
+                request.refundStatus === 'PENDING' ||
+                request.refundStatus === 'REVIEW_REQUIRED'
+                ? 'View Refund Status'
+                : request.paymentStatus === 'PAID' ||
+                    request.paymentStatus === 'REFUNDED'
+                    ? 'View Payment Details'
+                    : request.paymentStatus === 'CREATED' ||
+                        request.paymentStatus === 'PENDING' ||
+                        request.paymentStatus === 'REVIEW_REQUIRED'
+                        ? 'Check Payment Status'
+                        : request.paymentStatus === 'FAILED' ||
+                            request.paymentStatus === 'EXPIRED'
+                            ? 'Try Payment Again'
+                            : 'Pay Now'
+        : clientSetupCompleted
+            ? 'View Submitted Client Details'
+            : 'Next Step';
+
     const handleNextStep = () => {
         if (!request.id) {
             console.error('Missing onboarding request ID');
@@ -147,6 +247,49 @@ export default function OnboardingRequestDetailsScreen() {
         }
 
         const onboardingRequestId = String(request.id);
+
+        const maintenanceSetupCompleted =
+            isTrueValue(request.maintenanceSetupCompleted) ||
+            isTrueValue(request.maintenance_setup_completed);
+
+        const paymentStatus = request.paymentStatus;
+
+        const refundInProgress =
+            request.refundStatus === 'REQUESTED' ||
+            request.refundStatus === 'PENDING' ||
+            request.refundStatus === 'REVIEW_REQUIRED' ||
+            request.refundStatus === 'COMPLETED';
+
+        const shouldOpenPaymentStatus =
+            Boolean(request.paymentRecordId) &&
+            (
+                refundInProgress ||
+                paymentStatus === 'PAID' ||
+                paymentStatus === 'CREATED' ||
+                paymentStatus === 'PENDING' ||
+                paymentStatus === 'REVIEW_REQUIRED' ||
+                paymentStatus === 'REFUNDED'
+            );
+
+        if (maintenanceSetupCompleted) {
+            if (shouldOpenPaymentStatus && request.paymentRecordId) {
+                router.push({
+                    pathname: '/client-setup/payment/payment-success',
+                    params: {
+                        paymentRecordId: String(request.paymentRecordId),
+                    },
+                });
+                return;
+            }
+
+            router.push({
+                pathname: '/client-setup/payment/checkout',
+                params: {
+                    onboardingRequestId,
+                },
+            });
+            return;
+        }
 
         if (clientSetupCompleted) {
             router.push({
@@ -214,6 +357,16 @@ export default function OnboardingRequestDetailsScreen() {
                         <Text style={styles.statusValue}>{status}</Text>
                     </View>
 
+                    {/* <View style={styles.statusCard}>
+                        <Text style={styles.statusLabel}>
+                            PAYMENT STATUS
+                        </Text>
+
+                        <Text style={styles.statusValue}>
+                            {paymentDisplayStatus}
+                        </Text>
+                    </View> */}
+
                     <Section title="Business Information">
                         <DetailRow
                             label="Business Name"
@@ -279,9 +432,7 @@ export default function OnboardingRequestDetailsScreen() {
                             style={styles.nextButton}
                         >
                             <Text style={styles.nextButtonText}>
-                                {clientSetupCompleted
-                                    ? 'View Submitted Client Details'
-                                    : 'Next Step'}
+                                {nextActionLabel}
                             </Text>
 
                             <Ionicons

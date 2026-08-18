@@ -1,6 +1,37 @@
 import axios from 'axios';
 import { API_BASE_URL } from './api';
 
+export type PaymentStatus =
+    | 'CREATED'
+    | 'PENDING'
+    | 'PAID'
+    | 'FAILED'
+    | 'EXPIRED'
+    | 'REVIEW_REQUIRED'
+    | 'REFUNDED';
+
+export type PaymentProvider = 'PHONEPE' | 'RAZORPAY';
+
+export type PaymentMethod =
+    | 'PHONEPE'
+    | 'CARD'
+    | 'GOOGLE_PAY';
+
+export type RefundStatus =
+    | 'REQUESTED'
+    | 'PENDING'
+    | 'COMPLETED'
+    | 'FAILED'
+    | 'REVIEW_REQUIRED';
+
+export type RefundReason =
+    | 'CUSTOMER_CANCELLATION'
+    | 'SERVICE_CANCELLATION'
+    | 'DUPLICATE_CAPTURE'
+    | 'FORBIDDEN_PAYMENT_METHOD'
+    | 'LATE_CAPTURE'
+    | 'OTHER';
+
 export type OnboardingStatus =
     | 'SUBMITTED'
     | 'REVIEW'
@@ -31,6 +62,11 @@ export type OnboardingRequest = {
     maintenanceSetupCompleted?: boolean;
     createdAt?: string;
     updatedAt?: string;
+    paymentStatus?: PaymentStatus;
+    paymentRecordId?: number;
+    paymentProvider?: PaymentProvider;
+    paymentMethod?: PaymentMethod;
+    refundStatus?: RefundStatus;
 };
 
 export type CustomerOnboardingRequest =
@@ -102,6 +138,24 @@ export type AdminOnboardingDetails = {
     serverSetup: AdminServerSetupDetails | null;
     maintenanceSetupCompleted: boolean;
     maintenanceSetup: AdminMaintenanceSetupDetails | null;
+    payment: AdminPaymentDetails | null;
+};
+
+export type AdminPaymentDetails = {
+    id: number;
+    onboardingRequestId: number;
+    provider: PaymentProvider;
+    paymentMethod: PaymentMethod;
+    amount: number;
+    currency: string;
+    status: PaymentStatus;
+    providerState?: string;
+    providerPaymentId?: string;
+    paidAt?: string;
+    refundStatus?: RefundStatus;
+    refundReason?: RefundReason;
+    refundAmount?: number;
+    refundCompletedAt?: string;
 };
 
 const onboardingApi = axios.create({

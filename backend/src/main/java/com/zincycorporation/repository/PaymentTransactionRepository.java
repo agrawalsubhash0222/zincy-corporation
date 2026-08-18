@@ -75,4 +75,13 @@ public interface PaymentTransactionRepository
         List<PaymentTransaction> findTop50ByStatusAndFailureCodeInOrderByUpdatedAtAsc(
                         PaymentStatus status,
                         Collection<String> failureCodes);
+
+        /*
+         * Latest payment attempt for customer/admin payment summary.
+         *
+         * This is read-only presentation data. Payment processing continues to use
+         * the existing status-specific queries and safeguards.
+         */
+        Optional<PaymentTransaction> findFirstByOnboardingRequestIdOrderByCreatedAtDesc(
+                        Long onboardingRequestId);
 }
