@@ -91,46 +91,105 @@ function openPaymentDestination(
     });
 }
 
-function paymentStatusLabel(
+type PaymentBadgeTone =
+    | 'success'
+    | 'warning'
+    | 'danger'
+    | 'review'
+    | 'neutral';
+
+type PaymentBadge = {
+    label: string;
+    tone: PaymentBadgeTone;
+};
+
+function getPaymentBadge(
     item: CustomerOnboardingRequest
-): string {
+): PaymentBadge | null {
+    /*
+     * Do not show any payment UI until a real payment attempt exists.
+     *
+     * This keeps ordinary Submitted/Contacted/Approved requests clean
+     * and prevents "NOT STARTED" / "PAYMENT REQUIRED" clutter.
+     */
+    const hasPaymentAttempt =
+        Boolean(item.paymentRecordId) ||
+        Boolean(item.paymentStatus) ||
+        Boolean(item.refundStatus);
+
+    if (!hasPaymentAttempt) {
+        return null;
+    }
+
+    /*
+     * Refund state takes precedence over the original payment status.
+     */
     if (item.refundStatus === 'COMPLETED') {
-        return 'REFUNDED';
+        return {
+            label: 'REFUNDED',
+            tone: 'success',
+        };
     }
 
     if (
         item.refundStatus === 'REQUESTED' ||
         item.refundStatus === 'PENDING'
     ) {
-        return 'REFUND PROCESSING';
+        return {
+            label: 'REFUND PROCESSING',
+            tone: 'warning',
+        };
+    }
+
+    if (item.refundStatus === 'FAILED') {
+        return {
+            label: 'REFUND FAILED',
+            tone: 'danger',
+        };
     }
 
     if (item.refundStatus === 'REVIEW_REQUIRED') {
-        return 'REFUND REVIEW REQUIRED';
+        return {
+            label: 'REFUND REVIEW',
+            tone: 'review',
+        };
     }
 
     switch (item.paymentStatus) {
         case 'PAID':
-            return 'PAID';
+            return {
+                label: 'PAID',
+                tone: 'success',
+            };
 
         case 'CREATED':
         case 'PENDING':
-            return 'PROCESSING';
+            return {
+                label: 'PROCESSING',
+                tone: 'warning',
+            };
 
         case 'FAILED':
         case 'EXPIRED':
-            return 'PAYMENT FAILED';
+            return {
+                label: 'PAYMENT FAILED',
+                tone: 'danger',
+            };
 
         case 'REVIEW_REQUIRED':
-            return 'REVIEW REQUIRED';
+            return {
+                label: 'REVIEW REQUIRED',
+                tone: 'review',
+            };
 
         case 'REFUNDED':
-            return 'REFUNDED';
+            return {
+                label: 'REFUNDED',
+                tone: 'success',
+            };
 
         default:
-            return item.maintenanceSetupCompleted
-                ? 'PAYMENT REQUIRED'
-                : 'NOT STARTED';
+            return null;
     }
 }
 
@@ -477,6 +536,8 @@ export default function OnboardingCheckScreen() {
                         const disabled =
                             openingRequestId !== null;
 
+                        const paymentBadge = getPaymentBadge(item);
+
                         return (
                             <TouchableOpacity
                                 key={
@@ -498,68 +559,91 @@ export default function OnboardingCheckScreen() {
                                         : null,
                                 ]}
                             >
-                                <Text
-                                    style={
-                                        styles.detailText
-                                    }
-                                >
-                                    Business Name:{' '}
-                                    <Text
-                                        style={
-                                            styles.detailValue
-                                        }
-                                    >
-                                        {item.businessName ||
-                                            'N/A'}
-                                    </Text>
-                                </Text>
+                                <View style={styles.cardTopRow}>
+                                    <View style={styles.cardInformation}>
+                                        <Text style={styles.detailText}>
+                                            Business Name:{' '}
+                                            <Text style={styles.detailValue}>
+                                                {item.businessName || 'N/A'}
+                                            </Text>
+                                        </Text>
 
-                                <Text
-                                    style={[
-                                        styles.detailText,
-                                        styles.detailSpacing,
-                                    ]}
-                                >
-                                    Service Requested:{' '}
-                                    <Text
-                                        style={
-                                            styles.detailValue
-                                        }
-                                    >
-                                        {formatProjectTypes(
-                                            item.projectTypes,
-                                        )}
-                                    </Text>
-                                </Text>
+                                        <Text
+                                            style={[
+                                                styles.detailText,
+                                                styles.detailSpacing,
+                                            ]}
+                                        >
+                                            Service Requested:{' '}
+                                            <Text style={styles.detailValue}>
+                                                {formatProjectTypes(
+                                                    item.projectTypes,
+                                                )}
+                                            </Text>
+                                        </Text>
 
-                                <Text
-                                    style={[
-                                        styles.detailText,
-                                        styles.detailSpacing,
-                                    ]}
-                                >
-                                    Current Status:{' '}
-                                    <Text
-                                        style={
-                                            styles.statusText
-                                        }
-                                    >
-                                        {item.status ||
-                                            'SUBMITTED'}
-                                    </Text>
-                                </Text>
+                                        <Text
+                                            style={[
+                                                styles.detailText,
+                                                styles.detailSpacing,
+                                            ]}
+                                        >
+                                            Current Status:{' '}
+                                            <Text style={styles.statusText}>
+                                                {item.status || 'SUBMITTED'}
+                                            </Text>
+                                        </Text>
+                                    </View>
 
-                                <Text
-                                    style={[
-                                        styles.detailText,
-                                        styles.detailSpacing,
-                                    ]}
-                                >
-                                    Payment Status:{' '}
-                                    <Text style={styles.statusText}>
-                                        {paymentStatusLabel(item)}
-                                    </Text>
-                                </Text>
+                                    {paymentBadge && (
+                                        <View
+                                            style={[
+                                                styles.paymentBadge,
+                                                paymentBadge.tone === 'success'
+                                                    ? styles.paymentBadgeSuccess
+                                                    : paymentBadge.tone === 'danger'
+                                                        ? styles.paymentBadgeDanger
+                                                        : paymentBadge.tone === 'review'
+                                                            ? styles.paymentBadgeReview
+                                                            : paymentBadge.tone === 'warning'
+                                                                ? styles.paymentBadgeWarning
+                                                                : styles.paymentBadgeNeutral,
+                                            ]}
+                                        >
+                                            <View
+                                                style={[
+                                                    styles.paymentBadgeDot,
+                                                    paymentBadge.tone === 'success'
+                                                        ? styles.paymentBadgeDotSuccess
+                                                        : paymentBadge.tone === 'danger'
+                                                            ? styles.paymentBadgeDotDanger
+                                                            : paymentBadge.tone === 'review'
+                                                                ? styles.paymentBadgeDotReview
+                                                                : paymentBadge.tone === 'warning'
+                                                                    ? styles.paymentBadgeDotWarning
+                                                                    : styles.paymentBadgeDotNeutral,
+                                                ]}
+                                            />
+
+                                            <Text
+                                                style={[
+                                                    styles.paymentBadgeText,
+                                                    paymentBadge.tone === 'success'
+                                                        ? styles.paymentBadgeTextSuccess
+                                                        : paymentBadge.tone === 'danger'
+                                                            ? styles.paymentBadgeTextDanger
+                                                            : paymentBadge.tone === 'review'
+                                                                ? styles.paymentBadgeTextReview
+                                                                : paymentBadge.tone === 'warning'
+                                                                    ? styles.paymentBadgeTextWarning
+                                                                    : styles.paymentBadgeTextNeutral,
+                                                ]}
+                                            >
+                                                {paymentBadge.label}
+                                            </Text>
+                                        </View>
+                                    )}
+                                </View>
 
                                 <View
                                     style={
@@ -718,6 +802,103 @@ const styles = StyleSheet.create({
     statusText: {
         color: '#0EA5E9',
         fontWeight: '900',
+    },
+
+    cardTopRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+    },
+
+    cardInformation: {
+        flex: 1,
+        paddingRight: 12,
+    },
+
+    paymentBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        alignSelf: 'flex-start',
+        paddingHorizontal: 9,
+        paddingVertical: 5,
+        borderRadius: 999,
+        borderWidth: 1,
+    },
+
+    paymentBadgeSuccess: {
+        backgroundColor: '#F0FDF4',
+        borderColor: '#BBF7D0',
+    },
+
+    paymentBadgeWarning: {
+        backgroundColor: '#FFFBEB',
+        borderColor: '#FDE68A',
+    },
+
+    paymentBadgeDanger: {
+        backgroundColor: '#FEF2F2',
+        borderColor: '#FECACA',
+    },
+
+    paymentBadgeReview: {
+        backgroundColor: '#FAF5FF',
+        borderColor: '#E9D5FF',
+    },
+
+    paymentBadgeNeutral: {
+        backgroundColor: '#F8FAFC',
+        borderColor: '#E2E8F0',
+    },
+
+    paymentBadgeDot: {
+        width: 6,
+        height: 6,
+        marginRight: 5,
+        borderRadius: 3,
+    },
+
+    paymentBadgeDotSuccess: {
+        backgroundColor: '#16A34A',
+    },
+
+    paymentBadgeDotWarning: {
+        backgroundColor: '#D97706',
+    },
+
+    paymentBadgeDotDanger: {
+        backgroundColor: '#DC2626',
+    },
+
+    paymentBadgeDotReview: {
+        backgroundColor: '#7C3AED',
+    },
+
+    paymentBadgeDotNeutral: {
+        backgroundColor: '#64748B',
+    },
+
+    paymentBadgeText: {
+        fontSize: 10,
+        fontWeight: '900',
+    },
+
+    paymentBadgeTextSuccess: {
+        color: '#15803D',
+    },
+
+    paymentBadgeTextWarning: {
+        color: '#B45309',
+    },
+
+    paymentBadgeTextDanger: {
+        color: '#B91C1C',
+    },
+
+    paymentBadgeTextReview: {
+        color: '#7E22CE',
+    },
+
+    paymentBadgeTextNeutral: {
+        color: '#475569',
     },
 
     cardFooter: {
