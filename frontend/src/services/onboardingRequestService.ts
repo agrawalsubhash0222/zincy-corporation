@@ -161,7 +161,7 @@ export const getOnboardingRequests =
     async (): Promise<OnboardingRequest[]> => {
         const response =
             await api.get<OnboardingRequest[]>(
-                '/admin'
+                '/onboarding-requests/admin'
             );
 
         if (!Array.isArray(response.data)) {
@@ -179,7 +179,7 @@ export const getAdminOnboardingDetails =
     ): Promise<AdminOnboardingDetails> => {
         const response =
             await api.get<AdminOnboardingDetails>(
-                `/admin/${requestId}/details`
+                `/onboarding-requests/admin/${requestId}/details`
             );
 
         return response.data;
@@ -192,7 +192,7 @@ export const updateOnboardingRequestStatus =
     ): Promise<OnboardingRequest> => {
         const response =
             await api.patch<OnboardingRequest>(
-                `/admin/${requestId}/status`,
+                `/onboarding-requests/admin/${requestId}/status`,
                 { status }
             );
 
@@ -202,10 +202,8 @@ export const updateOnboardingRequestStatus =
 export const getMyOnboardingRequests =
     async (): Promise<CustomerOnboardingRequest[]> => {
         const response =
-            await api.get<
-                CustomerOnboardingRequest[]
-            >(
-                '/customer/me'
+            await api.get<CustomerOnboardingRequest[]>(
+                '/onboarding-requests/customer/me'
             );
 
         if (!Array.isArray(response.data)) {
@@ -222,10 +220,8 @@ export const getOnboardingRequestProgress =
         onboardingRequestId: number
     ): Promise<CustomerOnboardingRequest> => {
         const response =
-            await api.get<
-                CustomerOnboardingRequest
-            >(
-                `/customer/request/${onboardingRequestId}/progress`
+            await api.get<CustomerOnboardingRequest>(
+                `/onboarding-requests/customer/request/${onboardingRequestId}/progress`
             );
 
         return response.data;

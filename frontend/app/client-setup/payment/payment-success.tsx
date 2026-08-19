@@ -388,15 +388,28 @@ export default function PaymentSuccessScreen() {
         payment.paymentMethod === "CARD" &&
         payment.providerState?.toLowerCase() === "created",
     );
+    const cancelRetryWindowElapsed = Boolean(
+        payment?.cancelRetryAllowed ||
+        cancelRetrySeconds <= 0
+    );
+
     const cancelRetryEnabled = Boolean(
         showCancelRetry &&
-        (payment?.cancelRetryAllowed || cancelRetrySeconds <= 0) &&
+        cancelRetryWindowElapsed &&
         !loading &&
-        !cancellingAttempt,
+        !cancellingAttempt
     );
-    const cancelRetryLabel = cancelRetryEnabled
-        ? "Cancel this attempt & choose another payment"
-        : `Cancel & retry available in ${String(Math.floor(cancelRetrySeconds / 60)).padStart(2, "0")}:${String(cancelRetrySeconds % 60).padStart(2, "0")}`;
+
+    const cancelRetryLabel = !cancelRetryWindowElapsed
+        ? `Cancel & retry available in ${String(
+            Math.floor(cancelRetrySeconds / 60)
+        ).padStart(2, "0")}:${String(
+            cancelRetrySeconds % 60
+        ).padStart(2, "0")}`
+        : loading
+            ? "Finishing payment status check..."
+            : "Cancel this attempt & choose another payment";
+
 
     const cancelAndChooseAnother = async () => {
         if (!payment || !cancelRetryEnabled || cancellingAttempt) return;

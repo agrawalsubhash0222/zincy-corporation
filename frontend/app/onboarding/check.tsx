@@ -52,8 +52,18 @@ function openPaymentDestination(
         }
     }
 
+    if (paymentStatus === 'PAID') {
+        router.push({
+            pathname:
+                '/onboarding/project-confirmation',
+            params: {
+                onboardingRequestId,
+            },
+        });
+        return;
+    }
+
     if (
-        paymentStatus === 'PAID' ||
         paymentStatus === 'REFUNDED' ||
         paymentStatus === 'REVIEW_REQUIRED'
     ) {

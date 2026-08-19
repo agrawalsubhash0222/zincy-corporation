@@ -131,7 +131,13 @@ export async function getPaymentStatus(
 ): Promise<PaymentResponse> {
     const response = await api.get<PaymentResponse>(
         `/payments/${paymentRecordId}/status`,
-        { params: { refresh } }
+        {
+            params: { refresh },
+
+            // Payment status checks must not lock the result screen for the
+            // shared API client's full timeout when connectivity disappears.
+            timeout: 8000,
+        }
     );
 
     return response.data;
@@ -148,8 +154,14 @@ export async function abandonPaymentAttempt(
             params: options?.customerCancelled
                 ? { customerCancelled: true }
                 : undefined,
+
+            // The backend still performs the authoritative Razorpay check.
+            // This only prevents the client UI from hanging indefinitely
+            // during a connectivity failure.
+            timeout: 10000,
         }
     );
+
     return response.data;
 }
 
